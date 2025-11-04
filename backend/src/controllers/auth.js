@@ -6,18 +6,17 @@ exports.signup = async (req, res) => {
     const { email, password, name } = req.body;
 
     // Check if user already exists
-    const existingUser = await User.findOne({ email });
+    const existingUser = await User.findOne({ where: { email } });
     if (existingUser) {
       return res.status(400).json({ message: 'Email already registered' });
     }
 
     // Create new user
-    const user = new User({ email, password, name });
-    await user.save();
+    const user = await User.create({ email, password, name });
 
     // Generate JWT token
     const token = jwt.sign(
-      { userId: user._id },
+      { userId: user.id },
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
@@ -26,7 +25,7 @@ exports.signup = async (req, res) => {
       message: 'User created successfully',
       token,
       user: {
-        id: user._id,
+        id: user.id,
         email: user.email,
         name: user.name
       }
@@ -41,7 +40,7 @@ exports.login = async (req, res) => {
     const { email, password } = req.body;
 
     // Find user by email
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ where: { email } });
     if (!user) {
       return res.status(401).json({ message: 'Invalid email or password' });
     }
@@ -54,7 +53,7 @@ exports.login = async (req, res) => {
 
     // Generate JWT token
     const token = jwt.sign(
-      { userId: user._id },
+      { userId: user.id },
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
@@ -63,7 +62,7 @@ exports.login = async (req, res) => {
       message: 'Login successful',
       token,
       user: {
-        id: user._id,
+        id: user.id,
         email: user.email,
         name: user.name
       }

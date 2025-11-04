@@ -1,11 +1,18 @@
-const Order = require('../models/order.model');
+const { Order, OrderItem } = require('../models/order.model');
 const Product = require('../models/product.model');
+const { sequelize } = require('../config/database');
 
 exports.getAll = async (req, res) => {
   try {
-    const orders = await Order.find({ user: req.user.userId })
-      .populate('items.product')
-      .sort({ createdAt: -1 });
+    const orders = await Order.findAll({
+      where: { userId: req.user.userId },
+      include: [{
+        model: Product,
+        as: 'items',
+        through: { attributes: ['quantity', 'priceAtTime'] }
+      }],
+      order: [['createdAt', 'DESC']]
+    });
     res.json(orders);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching orders', error: error.message });
@@ -13,42 +20,61 @@ exports.getAll = async (req, res) => {
 };
 
 exports.create = async (req, res) => {
+  const t = await sequelize.transaction();
+
   try {
     const { items, shippingAddress } = req.body;
+    let totalAmount = 0;
 
     // Validate stock and calculate total
-    let totalAmount = 0;
     for (const item of items) {
-      const product = await Product.findById(item.product);
+      const product = await Product.findByPk(item.product, { transaction: t });
       if (!product) {
-        return res.status(400).json({ message: `Product ${item.product} not found` });
+        throw new Error(`Product ${item.product} not found`);
       }
       if (product.stock < item.quantity) {
-        return res.status(400).json({ message: `Insufficient stock for ${product.name}` });
+        throw new Error(`Insufficient stock for ${product.name}`);
       }
-      totalAmount += product.price * item.quantity;
+      totalAmount += parseFloat(product.price) * item.quantity;
     }
 
     // Create order
-    const order = new Order({
-      user: req.user.userId,
-      items,
+    const order = await Order.create({
+      userId: req.user.userId,
       totalAmount,
       shippingAddress
-    });
-    await order.save();
+    }, { transaction: t });
 
-    // Update product stock
+    // Create order items and update stock
     for (const item of items) {
-      await Product.findByIdAndUpdate(item.product, {
-        $inc: { stock: -item.quantity }
-      });
+      const product = await Product.findByPk(item.product, { transaction: t });
+      
+      await OrderItem.create({
+        orderId: order.id,
+        productId: item.product,
+        quantity: item.quantity,
+        priceAtTime: product.price
+      }, { transaction: t });
+
+      await product.update({
+        stock: product.stock - item.quantity
+      }, { transaction: t });
     }
 
-    // Populate product details and return
-    await order.populate('items.product');
-    res.status(201).json(order);
+    await t.commit();
+
+    // Fetch the complete order with products
+    const completeOrder = await Order.findByPk(order.id, {
+      include: [{
+        model: Product,
+        as: 'items',
+        through: { attributes: ['quantity', 'priceAtTime'] }
+      }]
+    });
+
+    res.status(201).json(completeOrder);
   } catch (error) {
+    await t.rollback();
     res.status(500).json({ message: 'Error creating order', error: error.message });
   }
 };

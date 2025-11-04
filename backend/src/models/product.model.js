@@ -1,44 +1,57 @@
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/database');
 
-const productSchema = new mongoose.Schema({
+const Product = sequelize.define('Product', {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true
+  },
   name: {
-    type: String,
-    required: true,
-    trim: true
+    type: DataTypes.STRING,
+    allowNull: false
   },
   description: {
-    type: String,
-    required: true
+    type: DataTypes.TEXT,
+    allowNull: false
   },
   price: {
-    type: Number,
-    required: true,
-    min: 0
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: false,
+    validate: {
+      min: 0
+    }
   },
   imageUrl: {
-    type: String,
-    required: true
+    type: DataTypes.STRING,
+    allowNull: false
   },
   category: {
-    type: String,
-    required: true,
-    enum: ['residential', 'commercial', 'industrial']
+    type: DataTypes.ENUM('residential', 'commercial', 'industrial'),
+    allowNull: false
   },
-  specifications: {
-    wattage: Number,
-    efficiency: Number,
-    warranty: Number,
-    dimensions: String
+  wattage: {
+    type: DataTypes.INTEGER
+  },
+  efficiency: {
+    type: DataTypes.DECIMAL(5, 2)
+  },
+  warranty: {
+    type: DataTypes.INTEGER
+  },
+  dimensions: {
+    type: DataTypes.STRING
   },
   stock: {
-    type: Number,
-    required: true,
-    min: 0
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    defaultValue: 0,
+    validate: {
+      min: 0
+    }
   }
+}, {
+  timestamps: true
 });
 
-module.exports = mongoose.model('Product', productSchema);
+module.exports = Product;

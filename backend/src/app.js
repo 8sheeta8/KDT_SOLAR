@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const routes = require('./routes');
-const connectDB = require('./config/db');
+const { connectDB } = require('./config/database');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -23,7 +23,7 @@ app.use((err, req, res, next) => {
 // Start server
 const startServer = async () => {
   try {
-    // Connect to MongoDB
+    // Connect to MySQL and sync models
     await connectDB();
     
     app.listen(PORT, () => {
