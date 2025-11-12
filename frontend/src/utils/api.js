@@ -31,4 +31,7 @@ export const getProduct = (id) => api.get(`/products/${id}`);
 export const createOrder = (orderData) => api.post('/orders', orderData);
 export const getOrders = () => api.get('/orders');
 
+// 관리자
+export const createProduct = (productData) => api.post('/products', productData);
+
 export default api;

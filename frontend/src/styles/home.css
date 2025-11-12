@@ -1,0 +1,288 @@
+/* Base Styles */
+.home-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #ff7b54 0%, #ffb26b 100%);
+  padding: 2rem 0;
+  animation: fadeIn 0.8s ease-in-out;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+/* Auth Section */
+.auth-card {
+  max-width: 400px;
+  margin: 0 auto 3rem;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  padding: 2.5rem;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.3s ease;
+}
+
+.auth-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+}
+
+.auth-title {
+  font-size: 2rem;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 2rem;
+  background: linear-gradient(135deg, #ff7b54, #ffb26b);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+}
+
+.form-input {
+  width: 90%; /* 🔥 85%에서 90%로 증가 */
+  max-width: 350px; /* 🔥 320px에서 350px로 증가 */
+  padding: 1rem;
+  border: 2px solid #e1e5e9;
+  border-radius: 12px;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #ff6b3d;
+  box-shadow: 0 0 0 3px rgba(255, 123, 84, 0.15);
+  transform: translateY(-1px);
+}
+
+.form-button {
+  width: 90%; /* 🔥 85%에서 90%로 증가 */
+  max-width: 350px; /* 🔥 320px에서 350px로 증가 */
+  padding: 1rem;
+  background: linear-gradient(135deg, #ff7b54, #ffb26b);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 0.5rem;
+}
+
+.form-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(255, 123, 84, 0.35);
+  background: linear-gradient(135deg, #ff6b3d, #ff9f4d);
+}
+
+.toggle-button {
+  background: none;
+  border: none;
+  color: #ff6b3d;
+  font-size: 0.9rem;
+  cursor: pointer;
+  margin-top: 1.5rem;
+  text-align: center;
+  width: 90%; /* 🔥 85%에서 90%로 증가 */
+  max-width: 350px; /* 🔥 320px에서 350px로 증가 */
+  padding: 0.5rem;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  
+  /* 🔥 중앙 정렬 강화 */
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.toggle-button:hover {
+  background: rgba(255, 123, 84, 0.12);
+  transform: translateY(-1px);
+}
+
+/* Products Section */
+.products-section {
+  margin-bottom: 4rem;
+}
+
+.products-title {
+  font-size: 2.5rem;
+  font-weight: 800;
+  text-align: center;
+  margin-bottom: 3rem;
+  color: white;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.products-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+  padding: 1rem 0;
+}
+
+.product-item {
+  transition: transform 0.3s ease;
+  animation: slideUp 0.6s ease-in-out;
+  animation-fill-mode: both;
+}
+
+.product-item:nth-child(1) { animation-delay: 0.1s; }
+.product-item:nth-child(2) { animation-delay: 0.2s; }
+.product-item:nth-child(3) { animation-delay: 0.3s; }
+.product-item:nth-child(4) { animation-delay: 0.4s; }
+
+.product-item:hover {
+  transform: translateY(-8px) scale(1.02);
+}
+
+/* Cart Summary */
+.cart-summary {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  animation: bounceIn 0.6s ease-in-out;
+  z-index: 1000;
+}
+
+.cart-content {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(15px);
+  padding: 1.5rem 2rem;
+  border-radius: 20px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  min-width: 200px;
+}
+
+.cart-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: #333;
+  text-align: center;
+}
+
+.checkout-button {
+  width: 100%;
+  padding: 0.8rem 1.5rem;
+  background: linear-gradient(135deg, #ff7b54, #ffb26b);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.checkout-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(255, 123, 84, 0.4);
+  background: linear-gradient(135deg, #ff6b3d, #ff9f4d);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes bounceIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.3) translateY(50px);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.05);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .home-container {
+    padding: 1rem 0;
+  }
+  
+  .auth-card {
+    margin: 0 1rem 2rem;
+    padding: 2rem;
+  }
+  
+  .products-title {
+    font-size: 2rem;
+    margin-bottom: 2rem;
+  }
+  
+  .products-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  
+  .cart-summary {
+    bottom: 1rem;
+    right: 1rem;
+    left: 1rem;
+  }
+  
+  .cart-content {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .auth-title {
+    font-size: 1.5rem;
+  }
+  
+  .products-title {
+    font-size: 1.8rem;
+  }
+  
+  .form-input,
+  .form-button {
+    padding: 0.8rem;
+  }
+  
+  /* 🔥 모바일에서 너비 조정 */
+  .form-input,
+  .form-button,
+  .toggle-button {
+    width: 95%; /* 90%에서 95%로 모바일에서 더 넓게 */
+    max-width: none;
+  }
+}

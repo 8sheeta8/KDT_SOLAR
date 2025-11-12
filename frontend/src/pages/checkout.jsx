@@ -1,6 +1,9 @@
+//checkout.jsx
+
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { createOrder } from '../utils/api';
+import '../styles/checkout.css';
 
 export default function Checkout() {
   const navigate = useNavigate();
@@ -38,13 +41,11 @@ export default function Checkout() {
 
   if (cart.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-4">Your cart is empty</h2>
-          <button
-            onClick={() => navigate('/')}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-          >
+      <div className="empty-cart-container">
+        <div className="empty-cart-content">
+          <div className="empty-cart-icon">🛒</div>
+          <h2 className="empty-cart-title">Your cart is empty</h2>
+          <button onClick={() => navigate('/')} className="return-shop-btn">
             Return to Shop
           </button>
         </div>
@@ -53,28 +54,26 @@ export default function Checkout() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+    <div className="checkout-container">
+      <div className="checkout-content">
+        <h1 className="checkout-title">Checkout</h1>
+        <div className="checkout-grid">
           {/* Order Summary */}
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <h2 className="text-2xl font-bold mb-4">Order Summary</h2>
-            <div className="space-y-4">
+          <div className="order-summary-card">
+            <h2 className="card-title">Order Summary</h2>
+            <div className="cart-items">
               {cart.map((item) => (
-                <div
-                  key={item._id}
-                  className="flex justify-between items-center border-b pb-2"
-                >
-                  <div>
-                    <h3 className="font-semibold">{item.name}</h3>
-                    <p className="text-gray-600">${item.price.toLocaleString()}</p>
+                <div key={item._id} className="cart-item">
+                  <div className="item-info">
+                    <h3 className="item-name">{item.name}</h3>
+                    <p className="item-price">${item.price.toLocaleString()}</p>
                   </div>
-                  <span className="text-gray-600">Qty: 1</span>
+                  <span className="item-qty">Qty: 1</span>
                 </div>
               ))}
-              <div className="flex justify-between items-center pt-2">
-                <span className="font-bold">Total:</span>
-                <span className="font-bold text-blue-600">
+              <div className="total-section">
+                <span className="total-label">Total:</span>
+                <span className="total-amount">
                   ${totalAmount.toLocaleString()}
                 </span>
               </div>
@@ -82,9 +81,9 @@ export default function Checkout() {
           </div>
 
           {/* Shipping Form */}
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <h2 className="text-2xl font-bold mb-4">Shipping Information</h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="shipping-form-card">
+            <h2 className="card-title">Shipping Information</h2>
+            <form onSubmit={handleSubmit} className="shipping-form">
               <input
                 type="text"
                 placeholder="Street Address"
@@ -95,7 +94,7 @@ export default function Checkout() {
                     street: e.target.value,
                   })
                 }
-                className="w-full p-2 border rounded"
+                className="form-input"
                 required
               />
               <input
@@ -105,7 +104,7 @@ export default function Checkout() {
                 onChange={(e) =>
                   setShippingAddress({ ...shippingAddress, city: e.target.value })
                 }
-                className="w-full p-2 border rounded"
+                className="form-input"
                 required
               />
               <input
@@ -118,7 +117,7 @@ export default function Checkout() {
                     state: e.target.value,
                   })
                 }
-                className="w-full p-2 border rounded"
+                className="form-input"
                 required
               />
               <input
@@ -131,7 +130,7 @@ export default function Checkout() {
                     postalCode: e.target.value,
                   })
                 }
-                className="w-full p-2 border rounded"
+                className="form-input"
                 required
               />
               <input
@@ -144,13 +143,10 @@ export default function Checkout() {
                     country: e.target.value,
                   })
                 }
-                className="w-full p-2 border rounded"
+                className="form-input"
                 required
               />
-              <button
-                type="submit"
-                className="w-full bg-blue-600 text-white p-3 rounded hover:bg-blue-700"
-              >
+              <button type="submit" className="place-order-btn">
                 Place Order
               </button>
             </form>

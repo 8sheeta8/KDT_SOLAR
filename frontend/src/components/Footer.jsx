@@ -1,36 +1,37 @@
+import "../styles/footer.css";
+
 export default function Footer() {
   return (
-    <footer className="bg-gray-800 text-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div>
-            <h3 className="text-lg font-semibold mb-4">KDT Solar</h3>
-            <p className="text-gray-400">
-              Powering a sustainable future with innovative solar solutions.
+    <footer className="footer">
+      <div className="footer-container">
+        <div className="footer-grid">
+          <div className="footer-section">
+            <h3 className="footer-title">KDT Solar</h3>
+            <p className="footer-description">
             </p>
           </div>
-          <div>
-            <h3 className="text-lg font-semibold mb-4">Contact</h3>
-            <p className="text-gray-400">Email: info@kdtsolar.com</p>
-            <p className="text-gray-400">Phone: (555) 123-4567</p>
+          <div className="footer-section">
+            <h3 className="footer-title">Contact</h3>
+            <p className="footer-text">Email: info@kdtsolar.com</p>
+            <p className="footer-text">Phone: (555) 123-4567</p>
           </div>
-          <div>
-            <h3 className="text-lg font-semibold mb-4">Follow Us</h3>
-            <div className="space-x-4">
-              <a href="#" className="text-gray-400 hover:text-white">
+          <div className="footer-section">
+            <h3 className="footer-title">Follow Us</h3>
+            <div className="social-links">
+              <a href="#" className="social-link">
                 Twitter
               </a>
-              <a href="#" className="text-gray-400 hover:text-white">
+              <a href="#" className="social-link">
                 LinkedIn
               </a>
-              <a href="#" className="text-gray-400 hover:text-white">
+              <a href="#" className="social-link">
                 Facebook
               </a>
             </div>
           </div>
         </div>
-        <div className="mt-8 border-t border-gray-700 pt-8 text-center text-gray-400">
-          <p>© {new Date().getFullYear()} KDT Solar. All rights reserved.</p>
+        <div className="footer-bottom">
+          <p className="copyright">© {new Date().getFullYear()} KDT Solar. All rights reserved.</p>
         </div>
       </div>
     </footer>

@@ -1,26 +1,29 @@
+//Navbar.jsx
+
 import { Link } from 'react-router-dom';
 import { ShoppingCartIcon, UserIcon } from '@heroicons/react/24/outline';
+import "../styles/navbar.css";
 
 export default function Navbar() {
   const user = JSON.parse(localStorage.getItem('user'));
 
   return (
-    <nav className="bg-white shadow-lg">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
-          <div className="flex items-center">
-            <Link to="/" className="text-2xl font-bold text-blue-600">
+    <nav className="navbar">
+      <div className="navbar-container">
+        <div className="navbar-content">
+          <div className="navbar-brand">
+            <Link to="/" className="brand-link">
               KDT Solar
             </Link>
           </div>
-          <div className="flex items-center space-x-4">
+          <div className="navbar-menu">
             {user ? (
               <>
-                <Link to="/orders" className="text-gray-600 hover:text-blue-600">
+                <Link to="/orders" className="nav-link">
                   Orders
                 </Link>
-                <Link to="/checkout" className="text-gray-600 hover:text-blue-600">
-                  <ShoppingCartIcon className="h-6 w-6" />
+                <Link to="/checkout" className="nav-link nav-icon">
+                  <ShoppingCartIcon className="icon" />
                 </Link>
                 <button
                   onClick={() => {
@@ -28,14 +31,14 @@ export default function Navbar() {
                     localStorage.removeItem('token');
                     window.location.reload();
                   }}
-                  className="text-gray-600 hover:text-blue-600"
+                  className="logout-button"
                 >
                   Logout
                 </button>
               </>
             ) : (
-              <Link to="/" className="text-gray-600 hover:text-blue-600">
-                <UserIcon className="h-6 w-6" />
+              <Link to="/" className="nav-link nav-icon">
+                <UserIcon className="icon" />
               </Link>
             )}
           </div>
