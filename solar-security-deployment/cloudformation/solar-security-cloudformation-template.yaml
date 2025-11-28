@@ -1,0 +1,3722 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Solar SIEM/SOAR Complete Infrastructure - Fully Integrated Template"
+
+Metadata:
+  Author: "Solar Security Team"
+  Description: "Complete SIEM/SOAR infrastructure deployment with all components"
+  Version: "1.0"
+
+Parameters:
+  SlackWebhookURL:
+    Type: String
+    Description: "Slack Webhook URL for notifications"
+    Default: "https://hooks.slack.com/services/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"
+  
+  OpenSearchEndpoint:
+    Type: String
+    Description: "OpenSearch domain endpoint"
+    Default: "https://vpc-solar-opensearch-domain-v4vshx2o7gtk4gjnjihgwf643u.us-east-1.es.amazonaws.com"
+
+  VPCId:
+    Type: String
+    Description: "VPC ID for security groups"
+    Default: "vpc-0cdf149186ad14f01"
+
+  DefaultVPCId:
+    Type: String
+    Description: "Default VPC ID"
+    Default: "vpc-09931cc7b77d3c399"
+
+  SubnetIds:
+    Type: CommaDelimitedList
+    Description: "Subnet IDs for Lambda VPC configuration"
+    Default: "subnet-0d719b44d32236166,subnet-0491679de33810024"
+
+Resources:
+  # ========== KMS Keys ==========
+  SolarKMSKeyS3:
+    Type: "AWS::KMS::Key"
+    Properties:
+      Description: "Solar S3 encryption key"
+      KeyPolicy:
+        Version: "2012-10-17"
+        Statement:
+        - Effect: "Allow"
+          Principal:
+            AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+          Action: "kms:*"
+          Resource: "*"
+
+  SolarKMSKeyCloudWatch:
+    Type: "AWS::KMS::Key"
+    Properties:
+      Description: "Solar CloudWatch encryption key"
+      KeyPolicy:
+        Version: "2012-10-17"
+        Statement:
+        - Effect: "Allow"
+          Principal:
+            AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+          Action: "kms:*"
+          Resource: "*"
+
+  # ========== S3 Buckets ==========
+  SolarS3Public:
+    Type: "AWS::S3::Bucket"
+    Properties:
+      BucketName: "solar-s3-public"
+      PublicAccessBlockConfiguration:
+        RestrictPublicBuckets: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: true
+        BlockPublicAcls: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+        - ServerSideEncryptionByDefault:
+            SSEAlgorithm: "AES256"
+      OwnershipControls:
+        Rules:
+        - ObjectOwnership: "BucketOwnerEnforced"
+
+  SolarS3EcommerceImage:
+    Type: "AWS::S3::Bucket"
+    Properties:
+      BucketName: "solar-s3-ecommerce-image"
+      PublicAccessBlockConfiguration:
+        RestrictPublicBuckets: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: true
+        BlockPublicAcls: true
+      VersioningConfiguration:
+        Status: "Enabled"
+      CorsConfiguration:
+        CorsRules:
+        - AllowedHeaders: ["*"]
+          AllowedMethods: ["GET"]
+          AllowedOrigins: ["https://kdt-solar-ecommerce.com/"]
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+        - ServerSideEncryptionByDefault:
+            SSEAlgorithm: "AES256"
+      OwnershipControls:
+        Rules:
+        - ObjectOwnership: "BucketOwnerEnforced"
+
+  SolarS3CloudTrail:
+    Type: "AWS::S3::Bucket"
+    Properties:
+      BucketName: "solar-s3-cloudtrail"
+      PublicAccessBlockConfiguration:
+        RestrictPublicBuckets: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: true
+        BlockPublicAcls: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+        - ServerSideEncryptionByDefault:
+            SSEAlgorithm: "AES256"
+      OwnershipControls:
+        Rules:
+        - ObjectOwnership: "BucketOwnerEnforced"
+
+  SolarS3Config:
+    Type: "AWS::S3::Bucket"
+    Properties:
+      BucketName: "solar-s3-config"
+      PublicAccessBlockConfiguration:
+        RestrictPublicBuckets: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: true
+        BlockPublicAcls: true
+      VersioningConfiguration:
+        Status: "Suspended"
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+        - ServerSideEncryptionByDefault:
+            SSEAlgorithm: "AES256"
+      OwnershipControls:
+        Rules:
+        - ObjectOwnership: "BucketOwnerEnforced"
+
+  SolarS3OpenSearch:
+    Type: "AWS::S3::Bucket"
+    Properties:
+      BucketName: "solar-s3-opensearch"
+      PublicAccessBlockConfiguration:
+        RestrictPublicBuckets: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: true
+        BlockPublicAcls: true
+      LifecycleConfiguration:
+        TransitionDefaultMinimumObjectSize: "all_storage_classes_128K"
+        Rules:
+        - Status: "Enabled"
+          Id: "solar-s3-opensearch"
+          NoncurrentVersionExpiration:
+            NoncurrentDays: 1
+          ExpirationInDays: 30
+      VersioningConfiguration:
+        Status: "Suspended"
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+        - ServerSideEncryptionByDefault:
+            SSEAlgorithm: "AES256"
+      OwnershipControls:
+        Rules:
+        - ObjectOwnership: "BucketOwnerEnforced"
+
+  SolarS3SecurityForensics:
+    Type: "AWS::S3::Bucket"
+    Properties:
+      BucketName: "solar-s3-security-forensics"
+      PublicAccessBlockConfiguration:
+        RestrictPublicBuckets: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: true
+        BlockPublicAcls: true
+      VersioningConfiguration:
+        Status: "Enabled"
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+        - ServerSideEncryptionByDefault:
+            SSEAlgorithm: "AES256"
+      OwnershipControls:
+        Rules:
+        - ObjectOwnership: "BucketOwnerEnforced"
+
+  SolarS3CloudWatch:
+    Type: "AWS::S3::Bucket"
+    Properties:
+      BucketName: "solar-s3-cloudwatch"
+      PublicAccessBlockConfiguration:
+        RestrictPublicBuckets: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: true
+        BlockPublicAcls: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+        - ServerSideEncryptionByDefault:
+            SSEAlgorithm: "aws:kms"
+            KMSMasterKeyID: !Ref SolarKMSKeyCloudWatch
+      OwnershipControls:
+        Rules:
+        - ObjectOwnership: "BucketOwnerEnforced"
+
+  AWSWafLogsS3Solar:
+    Type: "AWS::S3::Bucket"
+    Properties:
+      BucketName: "aws-waf-logs-s3-solar"
+      PublicAccessBlockConfiguration:
+        RestrictPublicBuckets: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: true
+        BlockPublicAcls: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+        - ServerSideEncryptionByDefault:
+            SSEAlgorithm: "aws:kms"
+            KMSMasterKeyID: !Ref SolarKMSKeyS3
+      OwnershipControls:
+        Rules:
+        - ObjectOwnership: "BucketOwnerEnforced"
+
+  SolarTestS3:
+    Type: "AWS::S3::Bucket"
+    Properties:
+      BucketName: "solar-test-s3"
+      PublicAccessBlockConfiguration:
+        RestrictPublicBuckets: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: true
+        BlockPublicAcls: true
+      VersioningConfiguration:
+        Status: "Enabled"
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+        - ServerSideEncryptionByDefault:
+            SSEAlgorithm: "AES256"
+      OwnershipControls:
+        Rules:
+        - ObjectOwnership: "BucketOwnerEnforced"
+
+  # ========== S3 Bucket Policies ==========
+  SolarS3PublicBucketPolicy:
+    Type: "AWS::S3::BucketPolicy"
+    Properties:
+      Bucket: !Ref SolarS3Public
+      PolicyDocument:
+        Version: "2008-10-17"
+        Statement:
+        - Sid: "AllowCloudFrontServicePrincipal"
+          Effect: "Allow"
+          Principal:
+            Service: "cloudfront.amazonaws.com"
+          Action: "s3:GetObject"
+          Resource: !Sub "${SolarS3Public}/*"
+          Condition:
+            StringEquals:
+              "AWS:SourceArn": !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/*"
+
+  SolarS3EcommerceImageBucketPolicy:
+    Type: "AWS::S3::BucketPolicy"
+    Properties:
+      Bucket: !Ref SolarS3EcommerceImage
+      PolicyDocument:
+        Version: "2008-10-17"
+        Statement:
+        - Sid: "AllowCloudFrontServicePrincipal"
+          Effect: "Allow"
+          Principal:
+            Service: "cloudfront.amazonaws.com"
+          Action: "s3:GetObject"
+          Resource: !Sub "${SolarS3EcommerceImage}/*"
+          Condition:
+            StringEquals:
+              "AWS:SourceArn": !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/*"
+
+  SolarS3CloudTrailBucketPolicy:
+    Type: "AWS::S3::BucketPolicy"
+    Properties:
+      Bucket: !Ref SolarS3CloudTrail
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Sid: "AWSCloudTrailAclCheck"
+          Effect: "Allow"
+          Principal:
+            Service: "cloudtrail.amazonaws.com"
+          Action: "s3:GetBucketAcl"
+          Resource: !GetAtt SolarS3CloudTrail.Arn
+          Condition:
+            StringEquals:
+              "AWS:SourceArn": !Sub "arn:aws:cloudtrail:$${AWS::Region}:$${AWS::AccountId}:trail/solar_cloudtrail-s3"
+        - Sid: "AWSCloudTrailWrite"
+          Effect: "Allow"
+          Principal:
+            Service: "cloudtrail.amazonaws.com"
+          Action: "s3:PutObject"
+          Resource: !Sub "$${SolarS3CloudTrail}/AWSLogs/$${AWS::AccountId}/*"
+          Condition:
+            StringEquals:
+              "AWS:SourceArn": !Sub "arn:aws:cloudtrail:$${AWS::Region}:$${AWS::AccountId}:trail/solar_cloudtrail-s3"
+              "s3:x-amz-acl": "bucket-owner-full-control"
+
+  SolarS3ConfigBucketPolicy:
+    Type: "AWS::S3::BucketPolicy"
+    Properties:
+      Bucket: !Ref SolarS3Config
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Sid: "AWSConfigBucketPermissionsCheck"
+          Effect: "Allow"
+          Principal:
+            Service: "config.amazonaws.com"
+          Action: "s3:GetBucketAcl"
+          Resource: !GetAtt SolarS3Config.Arn
+          Condition:
+            StringEquals:
+              "AWS:SourceAccount": !Ref "AWS::AccountId"
+        - Sid: "AWSConfigBucketExistenceCheck"
+          Effect: "Allow"
+          Principal:
+            Service: "config.amazonaws.com"
+          Action: "s3:ListBucket"
+          Resource: !GetAtt SolarS3Config.Arn
+          Condition:
+            StringEquals:
+              "AWS:SourceAccount": !Ref "AWS::AccountId"
+        - Sid: "AWSConfigBucketDelivery"
+          Effect: "Allow"
+          Principal:
+            Service: "config.amazonaws.com"
+          Action: "s3:PutObject"
+          Resource: !Sub "$${SolarS3Config}/AWSLogs/$${AWS::AccountId}/Config/*"
+          Condition:
+            StringEquals:
+              "AWS:SourceAccount": !Ref "AWS::AccountId"
+              "s3:x-amz-acl": "bucket-owner-full-control"
+
+  SolarS3OpenSearchBucketPolicy:
+    Type: "AWS::S3::BucketPolicy"
+    Properties:
+      Bucket: !Ref SolarS3OpenSearch
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Sid: "CloudWatchLogsExportPolicy"
+          Effect: "Allow"
+          Principal:
+            Service: "logs.amazonaws.com"
+          Action:
+          - "s3:GetBucketAcl"
+          - "s3:GetBucketLocation"
+          - "s3:PutObject"
+          Resource:
+          - !GetAtt SolarS3OpenSearch.Arn
+          - !Sub "${SolarS3OpenSearch}/*"
+          Condition:
+            StringEquals:
+              "aws:SourceAccount": !Ref "AWS::AccountId"
+        - Sid: "LambdaAccessPolicy"
+          Effect: "Allow"
+          Principal:
+            AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+          Action:
+          - "s3:PutObject"
+          - "s3:PutObjectAcl"
+          Resource: !Sub "${SolarS3OpenSearch}/*"
+
+  SolarS3SecurityForensicsBucketPolicy:
+    Type: "AWS::S3::BucketPolicy"
+    Properties:
+      Bucket: !Ref SolarS3SecurityForensics
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Sid: "DenyInsecureConnections"
+          Effect: "Deny"
+          Principal: "*"
+          Action: "s3:*"
+          Resource:
+          - !GetAtt SolarS3SecurityForensics.Arn
+          - !Sub "${SolarS3SecurityForensics}/*"
+          Condition:
+            Bool:
+              "aws:SecureTransport": "false"
+
+  AWSWafLogsS3SolarBucketPolicy:
+    Type: "AWS::S3::BucketPolicy"
+    Properties:
+      Bucket: !Ref AWSWafLogsS3Solar
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Sid: "AWSLogDeliveryWrite1"
+          Effect: "Allow"
+          Principal:
+            Service: "delivery.logs.amazonaws.com"
+          Action: "s3:PutObject"
+          Resource: !Sub "$${AWSWafLogsS3Solar}/AWSLogs/$${AWS::AccountId}/*"
+          Condition:
+            StringEquals:
+              "aws:SourceAccount": !Ref "AWS::AccountId"
+              "s3:x-amz-acl": "bucket-owner-full-control"
+            ArnLike:
+              "aws:SourceArn": !Sub "arn:aws:logs:$${AWS::Region}:$${AWS::AccountId}:*"
+        - Sid: "AWSLogDeliveryAclCheck1"
+          Effect: "Allow"
+          Principal:
+            Service: "delivery.logs.amazonaws.com"
+          Action: "s3:GetBucketAcl"
+          Resource: !GetAtt AWSWafLogsS3Solar.Arn
+          Condition:
+            StringEquals:
+              "aws:SourceAccount": !Ref "AWS::AccountId"
+            ArnLike:
+              "aws:SourceArn": !Sub "arn:aws:logs:$${AWS::Region}:$${AWS::AccountId}:*"
+
+  # ========== IAM Roles ==========
+  SolarLambdaBasicExecutionRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: "solar_lambda_basic_execution_role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Effect: "Allow"
+          Principal:
+            Service: "lambda.amazonaws.com"
+          Action: "sts:AssumeRole"
+      ManagedPolicyArns:
+      - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+      - "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+      Policies:
+      - PolicyName: "SolarLambdaBasicPolicy"
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+          - Effect: "Allow"
+            Action:
+            - "logs:*"
+            - "s3:*"
+            - "sns:Publish"
+            - "firehose:*"
+            Resource: "*"
+
+  SolarStepFunctionRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: "solar_stepfunction_role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Effect: "Allow"
+          Principal:
+            Service: "states.amazonaws.com"
+          Action: "sts:AssumeRole"
+      Policies:
+      - PolicyName: "SolarStepFunctionPolicy"
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+          - Effect: "Allow"
+            Action:
+            - "lambda:InvokeFunction"
+            - "logs:*"
+            - "sns:Publish"
+            - "s3:*"
+            Resource: "*"
+
+  SolarEventBridgeRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: "solar_eventbridge_role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Effect: "Allow"
+          Principal:
+            Service: "events.amazonaws.com"
+          Action: "sts:AssumeRole"
+      Policies:
+      - PolicyName: "SolarEventBridgePolicy"
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+          - Effect: "Allow"
+            Action:
+            - "states:StartExecution"
+            - "lambda:InvokeFunction"
+            - "sns:Publish"
+            Resource: "*"
+
+  SolarSecurityIncidentRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: "solar_sf_security_incident_role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Effect: "Allow"
+          Principal:
+            Service: "states.amazonaws.com"
+          Action: "sts:AssumeRole"
+      ManagedPolicyArns:
+      - "arn:aws:iam::aws:policy/AmazonS3FullAccess"
+      - "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess"
+      Policies:
+      - PolicyName: "SolarSecurityIncidentPolicy"
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+          - Effect: "Allow"
+            Action:
+            - "ec2:*"
+            - "wafv2:*"
+            - "lambda:InvokeFunction"
+            - "cloudwatch:*"
+            - "events:*"
+            - "ssm:*"
+            - "cloudtrail:LookupEvents"
+            - "support:*"
+            Resource: "*"
+
+  SolarIAMSOARRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: "solar_sf_iam_soar_role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Effect: "Allow"
+          Principal:
+            Service: "states.amazonaws.com"
+          Action: "sts:AssumeRole"
+      Policies:
+      - PolicyName: "SolarIAMSOARPolicy"
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+          - Effect: "Allow"
+            Action:
+            - "lambda:InvokeFunction"
+            - "logs:*"
+            - "iam:*"
+            Resource: "*"
+
+  SolarRDSSnapshotRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: "solar_sf_rds_snapshot_role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Effect: "Allow"
+          Principal:
+            Service: "states.amazonaws.com"
+          Action: "sts:AssumeRole"
+      Policies:
+      - PolicyName: "SolarRDSSnapshotPolicy"
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+          - Effect: "Allow"
+            Action:
+            - "lambda:InvokeFunction"
+            - "logs:*"
+            - "rds:*"
+            Resource: "*"
+
+  SolarCloudWatchRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: "solar_cloudwatch_role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Effect: "Allow"
+          Principal:
+            Service: "logs.amazonaws.com"
+          Action: "sts:AssumeRole"
+      Policies:
+      - PolicyName: "SolarCloudWatchPolicy"
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+          - Effect: "Allow"
+            Action:
+            - "firehose:PutRecord"
+            - "firehose:PutRecordBatch"
+            Resource: "*"
+
+  SolarFirehoseRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: "solar_firehose_role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Effect: "Allow"
+          Principal:
+            Service: "firehose.amazonaws.com"
+          Action: "sts:AssumeRole"
+      Policies:
+      - PolicyName: "SolarFirehosePolicy"
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+          - Effect: "Allow"
+            Action:
+            - "s3:*"
+            - "kms:*"
+            - "lambda:InvokeFunction"
+            - "logs:*"
+            Resource: "*"
+
+  SolarCloudTrailRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: "solar_cloudtrail_role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Effect: "Allow"
+          Principal:
+            Service: "cloudtrail.amazonaws.com"
+          Action: "sts:AssumeRole"
+      Policies:
+      - PolicyName: "SolarCloudTrailPolicy"
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+          - Effect: "Allow"
+            Action:
+            - "logs:CreateLogStream"
+            - "logs:PutLogEvents"
+            Resource: "*"
+
+  SolarOpenSearchRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: "solar_opensearch_role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Effect: "Allow"
+          Principal:
+            Service: "lambda.amazonaws.com"
+          Action: "sts:AssumeRole"
+      ManagedPolicyArns:
+      - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+      - "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+      Policies:
+      - PolicyName: "SolarOpenSearchPolicy"
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+          - Effect: "Allow"
+            Action:
+            - "es:*"
+            - "sns:*"
+            Resource: "*"
+
+  # ========== Security Groups ==========
+  SolarSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupName: "solar_security_group"
+      GroupDescription: "EC2 security group"
+      VpcId: !Ref VPCId
+      SecurityGroupIngress:
+      - IpProtocol: "tcp"
+        FromPort: 80
+        ToPort: 80
+        CidrIp: "0.0.0.0/0"
+      - IpProtocol: "tcp"
+        FromPort: 443
+        ToPort: 443
+        CidrIp: "0.0.0.0/0"
+      - IpProtocol: "tcp"
+        FromPort: 22
+        ToPort: 22
+        CidrIp: "0.0.0.0/0"
+      - IpProtocol: "tcp"
+        FromPort: 3000
+        ToPort: 3000
+        CidrIp: "0.0.0.0/0"
+      - IpProtocol: "tcp"
+        FromPort: 3306
+        ToPort: 3306
+        CidrIp: "0.0.0.0/0"
+      - IpProtocol: "tcp"
+        FromPort: 8080
+        ToPort: 8080
+        CidrIp: "0.0.0.0/0"
+      SecurityGroupEgress:
+      - IpProtocol: "tcp"
+        FromPort: 0
+        ToPort: 0
+        CidrIp: "0.0.0.0/0"
+      - IpProtocol: "tcp"
+        FromPort: 443
+        ToPort: 443
+        CidrIp: "0.0.0.0/0"
+      Tags:
+      - Key: "Name"
+        Value: "solar_sg"
+
+  SolarSecurityMonitoringGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupName: "solar_sg-security-monitoring"
+      GroupDescription: "Temporary monitoring access for security team"
+      VpcId: !Ref DefaultVPCId
+      SecurityGroupIngress:
+      - IpProtocol: "tcp"
+        FromPort: 22
+        ToPort: 22
+        CidrIp: "218.154.67.169/32"
+      - IpProtocol: "tcp"
+        FromPort: 22
+        ToPort: 22
+        CidrIp: "10.0.0.0/8"
+        Description: "MEDIUM incident temp monitoring access: TEST-SF-001"
+      - IpProtocol: "-1"
+        FromPort: -1
+        ToPort: -1
+        CidrIp: "203.0.113.100/32"
+        Description: "CRITICAL: Blocked for incident CRIT-2024-001"
+      - IpProtocol: "-1"
+        FromPort: -1
+        ToPort: -1
+        CidrIp: "198.51.100.10/32"
+        Description: "CRITICAL_PRODUCTION: Blocked for incident EMERGENCY-TEST"
+      SecurityGroupEgress:
+      - IpProtocol: "-1"
+        FromPort: -1
+        ToPort: -1
+        CidrIp: "218.154.67.169/32"
+        Description: "BLOCKED: MEDIUM incident cloudtrail-39328019 - malicious IP"
+      - IpProtocol: "-1"
+        FromPort: -1
+        ToPort: -1
+        CidrIp: "183.91.222.126/32"
+        Description: "BLOCKED: MEDIUM incident cloudtrail-39328019 - malicious IP"
+      - IpProtocol: "-1"
+        FromPort: -1
+        ToPort: -1
+        CidrIp: "175.198.96.216/32"
+        Description: "BLOCKED: MEDIUM incident cloudtrail-39328022 - malicious IP"
+
+  SolarLoadBalancingVPCLinkGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupName: "loadbalancing-vpc link"
+      GroupDescription: "vpclink and lb"
+      VpcId: !Ref VPCId
+      SecurityGroupIngress:
+      - IpProtocol: "tcp"
+        FromPort: 80
+        ToPort: 80
+        CidrIp: "0.0.0.0/0"
+      - IpProtocol: "tcp"
+        FromPort: 443
+        ToPort: 443
+        CidrIp: "0.0.0.0/0"
+      SecurityGroupEgress:
+      - IpProtocol: "-1"
+        FromPort: -1
+        ToPort: -1
+        CidrIp: "0.0.0.0/0"
+
+  SolarSecurityIsolationGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupName: "solar_sg-security-isolation"
+      GroupDescription: "sg-security-isolation"
+      VpcId: !Ref VPCId
+
+  SolarSecurityDenyListGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupName: "solar_sg-security-deny-list"
+      GroupDescription: "Blocked IPs for security incidents"
+      VpcId: !Ref VPCId
+      SecurityGroupEgress:
+      - IpProtocol: "-1"
+        FromPort: -1
+        ToPort: -1
+        CidrIp: "0.0.0.0/0"
+
+  # ========== Lambda Functions ==========
+  SolarLambdaToSlack:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      FunctionName: "solar_lambda_to-slack"
+      Runtime: "python3.13"
+      Handler: "lambda_function.lambda_handler"
+      Role: !GetAtt SolarLambdaBasicExecutionRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          import urllib3
+          import os
+          import gzip
+          import base64
+          
+          def lambda_handler(event, context):
+              webhook_url = os.environ['SLACK_WEBHOOK_URL']
+              http = urllib3.PoolManager()
+              
+              # Handle different event sources
+              message_text = ""
+              
+              if 'Records' in event:
+                  # SNS event
+                  for record in event['Records']:
+                      if record.get('EventSource') == 'aws:sns':
+                          sns_message = json.loads(record['Sns']['Message'])
+                          message_text = f"🚨 Security Alert from SNS:\n{json.dumps(sns_message, indent=2)}"
+              elif 'awslogs' in event:
+                  # CloudWatch Logs event
+                  compressed_payload = base64.b64decode(event['awslogs']['data'])
+                  uncompressed_payload = gzip.decompress(compressed_payload)
+                  log_data = json.loads(uncompressed_payload)
+                  message_text = f"📊 CloudWatch Logs Alert:\n{json.dumps(log_data, indent=2)}"
+              else:
+                  # Direct invocation
+                  message_text = f"🔔 Security Event:\n{json.dumps(event, indent=2)}"
+              
+              message = {
+                  "text": message_text[:3000],  # Slack message limit
+                  "username": "Solar SIEM Bot",
+                  "icon_emoji": ":rotating_light:"
+              }
+              
+              try:
+                  response = http.request('POST', webhook_url,
+                                        body=json.dumps(message),
+                                        headers={'Content-Type': 'application/json'})
+                  
+                  return {
+                      'statusCode': 200,
+                      'body': json.dumps('Message sent to Slack successfully')
+                  }
+              except Exception as e:
+                  print(f"Error sending to Slack: {str(e)}")
+                  return {
+                      'statusCode': 500,
+                      'body': json.dumps(f'Error: {str(e)}')
+                  }
+      Environment:
+        Variables:
+          SLACK_WEBHOOK_URL: !Ref SlackWebhookURL
+          VPC_ALERT_INTERVAL_HOURS: "1"
+      Timeout: 60
+
+  SolarLambdaWAFSF:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      FunctionName: "solar_lambda_waf-sf"
+      Runtime: "python3.14"
+      Handler: "lambda_function.lambda_handler"
+      Role: !GetAtt SolarLambdaBasicExecutionRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import gzip
+          import base64
+          from datetime import datetime
+          
+          def lambda_handler(event, context):
+              stepfunctions = boto3.client('stepfunctions')
+              events_client = boto3.client('events')
+              
+              try:
+                  # Parse CloudWatch Logs event
+                  if 'awslogs' in event:
+                      compressed_payload = base64.b64decode(event['awslogs']['data'])
+                      uncompressed_payload = gzip.decompress(compressed_payload)
+                      log_data = json.loads(uncompressed_payload)
+                      
+                      # Process WAF logs
+                      for log_event in log_data['logEvents']:
+                          waf_log = json.loads(log_event['message'])
+                          
+                          # Determine severity based on action and rules
+                          severity = "MEDIUM"
+                          if waf_log.get('action') == 'BLOCK':
+                              severity = "HIGH"
+                          
+                          # Create security incident event
+                          incident_data = {
+                              'alertId': f"waf-{datetime.now().strftime('%Y%m%d-%H%M%S')}",
+                              'severity': severity,
+                              'alertType': f"WAF_{waf_log.get('action', 'UNKNOWN')}",
+                              'originalAlertType': 'WAF_LOG_EVENT',
+                              'resourceType': 'waf',
+                              'sourceIp': waf_log.get('httpRequest', {}).get('clientIp', 'unknown'),
+                              'targetResource': waf_log.get('webaclId', 'unknown'),
+                              'wafDetails': {
+                                  'action': waf_log.get('action'),
+                                  'terminatingRuleId': waf_log.get('terminatingRuleId'),
+                                  'httpRequest': waf_log.get('httpRequest', {}),
+                                  'timestamp': waf_log.get('timestamp'),
+                                  'attackCount': 1,
+                                  'blockingRule': waf_log.get('terminatingRuleId'),
+                                  'timeWindow': '5min'
+                              },
+                              'timestamp': datetime.now().isoformat()
+                          }
+                          
+                          # Start security incident state machine
+                          response = stepfunctions.start_execution(
+                              stateMachineArn=f'arn:aws:states:{context.invoked_function_arn.split(":")[3]}:{context.invoked_function_arn.split(":")[4]}:stateMachine:solar_sf_security-incident',
+                              input=json.dumps(incident_data),
+                              name=f'waf-incident-{datetime.now().strftime("%Y%m%d%H%M%S")}'
+                          )
+                          
+                          # Also send to EventBridge for additional processing
+                          events_client.put_events(
+                              Entries=[{
+                                  'Source': 'solar.waf',
+                                  'DetailType': 'WAF Security Event',
+                                  'Detail': json.dumps(incident_data)
+                              }]
+                          )
+                  
+                  return {
+                      'statusCode': 200,
+                      'body': json.dumps('WAF security incident workflow started')
+                  }
+                  
+              except Exception as e:
+                  print(f"Error processing WAF event: {str(e)}")
+                  return {
+                      'statusCode': 500,
+                      'body': json.dumps(f'Error: {str(e)}')
+                  }
+      Timeout: 63
+
+  SolarLambdaS3PublicBlock:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      FunctionName: "solar_lambda_s3-public-block"
+      Runtime: "python3.14"
+      Handler: "lambda_function.lambda_handler"
+      Role: !GetAtt SolarLambdaBasicExecutionRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import os
+          import urllib3
+          
+          def lambda_handler(event, context):
+              s3 = boto3.client('s3')
+              
+              try:
+                  # Extract bucket name from CloudTrail event
+                  bucket_name = event['detail']['requestParameters']['bucketName']
+                  
+                  print(f"Processing S3 public access block for bucket: {bucket_name}")
+                  
+                  # Block public access
+                  s3.put_public_access_block(
+                      Bucket=bucket_name,
+                      PublicAccessBlockConfiguration={
+                          'BlockPublicAcls': True,
+                          'IgnorePublicAcls': True,
+                          'BlockPublicPolicy': True,
+                          'RestrictPublicBuckets': True
+                      }
+                  )
+                  
+                  # Send notification to Slack
+                  webhook_url = os.environ.get('SLACK_WEBHOOK_URL')
+                  if webhook_url:
+                      http = urllib3.PoolManager()
+                      message = {
+                          "text": f"🛡️ S3 Security Remediation:\nBucket `{bucket_name}` public access has been automatically blocked.",
+                          "username": "Solar S3 Security Bot",
+                          "icon_emoji": ":shield:"
+                      }
+                      
+                      http.request('POST', webhook_url,
+                                  body=json.dumps(message),
+                                  headers={'Content-Type': 'application/json'})
+                  
+                  return {
+                      'statusCode': 200,
+                      'body': json.dumps({
+                          'message': f'Public access blocked for bucket {bucket_name}',
+                          'bucket': bucket_name,
+                          'action': 'public_access_blocked'
+                      })
+                  }
+                  
+              except Exception as e:
+                  print(f"Error blocking S3 public access: {str(e)}")
+                  return {
+                      'statusCode': 500,
+                      'body': json.dumps(f'Error: {str(e)}')
+                  }
+      Environment:
+        Variables:
+          SLACK_WEBHOOK_URL: !Ref SlackWebhookURL
+      Timeout: 63
+
+  SolarLambdaS3Versioning:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      FunctionName: "solar_lambda_s3-versioning"
+      Runtime: "python3.14"
+      Handler: "lambda_function.lambda_handler"
+      Role: !GetAtt SolarLambdaBasicExecutionRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          
+          def lambda_handler(event, context):
+              s3 = boto3.client('s3')
+              
+              try:
+                  # Extract bucket name from CloudTrail event
+                  bucket_name = event['detail']['requestParameters']['bucketName']
+                  
+                  print(f"Re-enabling S3 versioning for bucket: {bucket_name}")
+                  
+                  # Re-enable versioning
+                  s3.put_bucket_versioning(
+                      Bucket=bucket_name,
+                      VersioningConfiguration={
+                          'Status': 'Enabled'
+                      }
+                  )
+                  
+                  return {
+                      'statusCode': 200,
+                      'body': json.dumps({
+                          'message': f'Versioning re-enabled for bucket {bucket_name}',
+                          'bucket': bucket_name,
+                          'action': 'versioning_enabled'
+                      })
+                  }
+                  
+              except Exception as e:
+                  print(f"Error enabling S3 versioning: {str(e)}")
+                  return {
+                      'statusCode': 500,
+                      'body': json.dumps(f'Error: {str(e)}')
+                  }
+      Timeout: 3
+
+  SolarLambdaReportSlack:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      FunctionName: "solar_lambda_report-slack"
+      Runtime: "python3.14"
+      Handler: "lambda_function.lambda_handler"
+      Role: !GetAtt SolarLambdaBasicExecutionRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          import urllib3
+          import os
+          
+          def lambda_handler(event, context):
+              webhook_url = os.environ['SLACK_WEBHOOK_URL']
+              http = urllib3.PoolManager()
+              
+              try:
+                  # Process Step Function result
+                  message_text = "📊 S3 Security Remediation Report:\n"
+                  
+                  if 'versioning_result' in event:
+                      result = event['versioning_result']
+                      if 'Payload' in result:
+                          payload = json.loads(result['Payload']) if isinstance(result['Payload'], str) else result['Payload']
+                          message_text += f"✅ S3 Versioning: {payload.get('body', 'Action completed')}\n"
+                  
+                  if 'public_block_result' in event:
+                      result = event['public_block_result']
+                      if 'Payload' in result:
+                          payload = json.loads(result['Payload']) if isinstance(result['Payload'], str) else result['Payload']
+                          message_text += f"🛡️ Public Access Block: {payload.get('body', 'Action completed')}\n"
+                  
+                  message = {
+                      "text": message_text,
+                      "username": "Solar Report Bot",
+                      "icon_emoji": ":bar_chart:"
+                  }
+                  
+                  response = http.request('POST', webhook_url,
+                                        body=json.dumps(message),
+                                        headers={'Content-Type': 'application/json'})
+                  
+                  return {
+                      'statusCode': 200,
+                      'body': json.dumps('Report sent to Slack')
+                  }
+                  
+              except Exception as e:
+                  print(f"Error sending report to Slack: {str(e)}")
+                  return {
+                      'statusCode': 500,
+                      'body': json.dumps(f'Error: {str(e)}')
+                  }
+      Environment:
+        Variables:
+          SLACK_WEBHOOK_URL: !Ref SlackWebhookURL
+      Timeout: 3
+
+  SolarLambdaToOpenSearch:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      FunctionName: "solar_lambda_to-opensearch"
+      Runtime: "python3.14"
+      Handler: "lambda_function.lambda_handler"
+      Role: !GetAtt SolarOpenSearchRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import base64
+          import gzip
+          import os
+          from datetime import datetime
+          import urllib3
+          from urllib.parse import urlparse
+          
+          def lambda_handler(event, context):
+              opensearch_host = os.environ['OPENSEARCH_HOST']
+              index_prefix = os.environ.get('INDEX_PREFIX', 'aws-logs-')
+              
+              try:
+                  # Parse CloudWatch Logs event
+                  if 'awslogs' in event:
+                      compressed_payload = base64.b64decode(event['awslogs']['data'])
+                      uncompressed_payload = gzip.decompress(compressed_payload)
+                      log_data = json.loads(uncompressed_payload)
+                      
+                      # Create index name based on log group and date
+                      log_group = log_data['logGroup'].replace('/', '-').replace('_', '-').lower()
+                      date_str = datetime.now().strftime('%Y.%m.%d')
+                      index_name = f"{index_prefix}{log_group}-{date_str}"
+                      
+                      # Prepare documents for OpenSearch
+                      documents = []
+                      for log_event in log_data['logEvents']:
+                          doc = {
+                              'timestamp': datetime.fromtimestamp(log_event['timestamp'] / 1000).isoformat(),
+                              'log_group': log_data['logGroup'],
+                              'log_stream': log_data['logStream'],
+                              'message': log_event['message'],
+                              'id': log_event['id']
+                          }
+                          documents.append(doc)
+                      
+                      # Send to OpenSearch (simplified - in production use proper OpenSearch client)
+                      print(f"Would send {len(documents)} documents to OpenSearch index: {index_name}")
+                      print(f"Sample document: {documents[0] if documents else 'None'}")
+                  
+                  # Also handle SNS events
+                  elif 'Records' in event:
+                      for record in event['Records']:
+                          if record.get('EventSource') == 'aws:sns':
+                              sns_message = json.loads(record['Sns']['Message'])
+                              print(f"Processing SNS message for OpenSearch: {sns_message}")
+                  
+                  return {
+                      'statusCode': 200,
+                      'body': json.dumps('Data processed for OpenSearch')
+                  }
+                  
+              except Exception as e:
+                  print(f"Error processing data for OpenSearch: {str(e)}")
+                  return {
+                      'statusCode': 500,
+                      'body': json.dumps(f'Error: {str(e)}')
+                  }
+      Environment:
+        Variables:
+          OPENSEARCH_HOST: !Ref OpenSearchEndpoint
+          INDEX_PREFIX: "aws-logs-"
+      Timeout: 123
+
+  SolarLambdaIAMPolicyRollback:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      FunctionName: "solar_lambda_iam-policy_rollback"
+      Runtime: "python3.14"
+      Handler: "lambda_function.lambda_handler"
+      Role: !GetAtt SolarLambdaBasicExecutionRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          
+          def lambda_handler(event, context):
+              iam = boto3.client('iam')
+              
+              try:
+                  # Extract user and policy information from CloudTrail event
+                  detail = event['detail']
+                  user_name = detail['requestParameters']['userName']
+                  
+                  if detail['eventName'] == 'AttachUserPolicy':
+                      policy_arn = detail['requestParameters']['policyArn']
+                      # Detach the policy
+                      iam.detach_user_policy(UserName=user_name, PolicyArn=policy_arn)
+                      action = f"Detached policy {policy_arn} from user {user_name}"
+                      
+                  elif detail['eventName'] == 'PutUserPolicy':
+                      policy_name = detail['requestParameters']['policyName']
+                      # Delete the inline policy
+                      iam.delete_user_policy(UserName=user_name, PolicyName=policy_name)
+                      action = f"Deleted inline policy {policy_name} from user {user_name}"
+                  
+                  return {
+                      'statusCode': 200,
+                      'body': json.dumps({
+                          'message': 'IAM policy rollback completed',
+                          'action': action,
+                          'user': user_name
+                      })
+                  }
+                  
+              except Exception as e:
+                  print(f"Error in IAM policy rollback: {str(e)}")
+                  return {
+                      'statusCode': 500,
+                      'body': json.dumps(f'Error: {str(e)}')
+                  }
+      Timeout: 3
+
+  SolarLambdaIAMAccessKeyRollback:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      FunctionName: "solar_lambda_iam-access-key_rollback"
+      Runtime: "python3.14"
+      Handler: "lambda_function.lambda_handler"
+      Role: !GetAtt SolarLambdaBasicExecutionRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          
+          def lambda_handler(event, context):
+              iam = boto3.client('iam')
+              
+              try:
+                  # Extract information from CloudTrail event
+                  detail = event['detail']
+                  user_name = detail['requestParameters']['userName']
+                  access_key_id = detail['responseElements']['accessKey']['accessKeyId']
+                  
+                  # Delete the created access key
+                  iam.delete_access_key(UserName=user_name, AccessKeyId=access_key_id)
+                  
+                  return {
+                      'statusCode': 200,
+                      'body': json.dumps({
+                          'message': 'IAM access key rollback completed',
+                          'action': f'Deleted access key {access_key_id} for user {user_name}',
+                          'user': user_name,
+                          'access_key_id': access_key_id
+                      })
+                  }
+                  
+              except Exception as e:
+                  print(f"Error in IAM access key rollback: {str(e)}")
+                  return {
+                      'statusCode': 500,
+                      'body': json.dumps(f'Error: {str(e)}')
+                  }
+      Timeout: 3
+
+  SolarLambdaIAMUserRevoke:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      FunctionName: "solar_lambda_iam-user_revoke"
+      Runtime: "python3.14"
+      Handler: "lambda_function.lambda_handler"
+      Role: !GetAtt SolarLambdaBasicExecutionRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          
+          def lambda_handler(event, context):
+              iam = boto3.client('iam')
+              
+              try:
+                  # Extract user information from CloudTrail event
+                  detail = event['detail']
+                  user_name = detail['requestParameters']['userName']
+                  
+                  actions_taken = []
+                  
+                  # Remove all access keys
+                  try:
+                      access_keys = iam.list_access_keys(UserName=user_name)
+                      for key in access_keys['AccessKeyMetadata']:
+                          iam.delete_access_key(UserName=user_name, AccessKeyId=key['AccessKeyId'])
+                          actions_taken.append(f"Deleted access key {key['AccessKeyId']}")
+                  except Exception as e:
+                      print(f"Error removing access keys: {e}")
+                  
+                  # Deactivate MFA devices
+                  try:
+                      mfa_devices = iam.list_mfa_devices(UserName=user_name)
+                      for device in mfa_devices['MFADevices']:
+                          iam.deactivate_mfa_device(UserName=user_name, SerialNumber=device['SerialNumber'])
+                          actions_taken.append(f"Deactivated MFA device {device['SerialNumber']}")
+                  except Exception as e:
+                      print(f"Error deactivating MFA devices: {e}")
+                  
+                  # Delete login profile
+                  try:
+                      iam.delete_login_profile(UserName=user_name)
+                      actions_taken.append("Deleted login profile")
+                  except Exception as e:
+                      print(f"Error deleting login profile: {e}")
+                  
+                  # Detach all managed policies
+                  try:
+                      attached_policies = iam.list_attached_user_policies(UserName=user_name)
+                      for policy in attached_policies['AttachedPolicies']:
+                          iam.detach_user_policy(UserName=user_name, PolicyArn=policy['PolicyArn'])
+                          actions_taken.append(f"Detached policy {policy['PolicyName']}")
+                  except Exception as e:
+                      print(f"Error detaching policies: {e}")
+                  
+                  # Delete all inline policies
+                  try:
+                      inline_policies = iam.list_user_policies(UserName=user_name)
+                      for policy_name in inline_policies['PolicyNames']:
+                          iam.delete_user_policy(UserName=user_name, PolicyName=policy_name)
+                          actions_taken.append(f"Deleted inline policy {policy_name}")
+                  except Exception as e:
+                      print(f"Error deleting inline policies: {e}")
+                  
+                  # Remove from all groups
+                  try:
+                      groups = iam.get_groups_for_user(UserName=user_name)
+                      for group in groups['Groups']:
+                          iam.remove_user_from_group(UserName=user_name, GroupName=group['GroupName'])
+                          actions_taken.append(f"Removed from group {group['GroupName']}")
+                  except Exception as e:
+                      print(f"Error removing from groups: {e}")
+                  
+                  # Finally, delete the user
+                  try:
+                      iam.delete_user(UserName=user_name)
+                      actions_taken.append(f"Deleted user {user_name}")
+                  except Exception as e:
+                      print(f"Error deleting user: {e}")
+                  
+                  return {
+                      'statusCode': 200,
+                      'body': json.dumps({
+                          'message': 'IAM user revocation completed',
+                          'user': user_name,
+                          'actions_taken': actions_taken
+                      })
+                  }
+                  
+              except Exception as e:
+                  print(f"Error in IAM user revocation: {str(e)}")
+                  return {
+                      'statusCode': 500,
+                      'body': json.dumps(f'Error: {str(e)}')
+                  }
+      Timeout: 6
+
+  SolarLambdaIAMMFARevoke:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      FunctionName: "solar_lambda_iam-mfa_revoke"
+      Runtime: "python3.14"
+      Handler: "lambda_function.lambda_handler"
+      Role: !GetAtt SolarLambdaBasicExecutionRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          
+          def lambda_handler(event, context):
+              iam = boto3.client('iam')
+              
+              try:
+                  # Extract information from CloudTrail event
+                  detail = event['detail']
+                  user_name = detail['requestParameters']['userName']
+                  serial_number = detail['requestParameters']['serialNumber']
+                  
+                  actions_taken = []
+                  
+                  # Deactivate the MFA device (it's already deactivated, but ensure it)
+                  try:
+                      iam.deactivate_mfa_device(UserName=user_name, SerialNumber=serial_number)
+                      actions_taken.append(f"Ensured MFA device {serial_number} is deactivated")
+                  except Exception as e:
+                      print(f"MFA device already deactivated or error: {e}")
+                  
+                  # Delete login profile to prevent console access
+                  try:
+                      iam.delete_login_profile(UserName=user_name)
+                      actions_taken.append("Deleted login profile - console access blocked")
+                  except Exception as e:
+                      print(f"Login profile may not exist or error: {e}")
+                  
+                  # Delete all access keys
+                  try:
+                      access_keys = iam.list_access_keys(UserName=user_name)
+                      for key in access_keys['AccessKeyMetadata']:
+                          iam.delete_access_key(UserName=user_name, AccessKeyId=key['AccessKeyId'])
+                          actions_taken.append(f"Deleted access key {key['AccessKeyId']}")
+                  except Exception as e:
+                      print(f"Error removing access keys: {e}")
+                  
+                  return {
+                      'statusCode': 200,
+                      'body': json.dumps({
+                          'message': 'IAM MFA revocation and user blocking completed',
+                          'user': user_name,
+                          'actions_taken': actions_taken
+                      })
+                  }
+                  
+              except Exception as e:
+                  print(f"Error in IAM MFA revocation: {str(e)}")
+                  return {
+                      'statusCode': 500,
+                      'body': json.dumps(f'Error: {str(e)}')
+                  }
+      Timeout: 3
+
+  SolarLambdaPolicyMakeFixRollback:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      FunctionName: "solar_lambda_policy-makefix_rollback"
+      Runtime: "python3.14"
+      Handler: "lambda_function.lambda_handler"
+      Role: !GetAtt SolarLambdaBasicExecutionRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          
+          def lambda_handler(event, context):
+              iam = boto3.client('iam')
+              
+              try:
+                  detail = event['detail']
+                  event_name = detail['eventName']
+                  
+                  if event_name == 'CreatePolicy':
+                      # Delete the created policy
+                      policy_arn = detail['responseElements']['policy']['arn']
+                      iam.delete_policy(PolicyArn=policy_arn)
+                      action = f"Deleted policy {policy_arn}"
+                      
+                  elif event_name == 'CreateRole':
+                      # Delete the created role
+                      role_name = detail['requestParameters']['roleName']
+                      # First detach all policies and delete inline policies
+                      try:
+                          # Detach managed policies
+                          attached_policies = iam.list_attached_role_policies(RoleName=role_name)
+                          for policy in attached_policies['AttachedPolicies']:
+                              iam.detach_role_policy(RoleName=role_name, PolicyArn=policy['PolicyArn'])
+                          
+                          # Delete inline policies
+                          inline_policies = iam.list_role_policies(RoleName=role_name)
+                          for policy_name in inline_policies['PolicyNames']:
+                              iam.delete_role_policy(RoleName=role_name, PolicyName=policy_name)
+                              
+                          # Delete the role
+                          iam.delete_role(RoleName=role_name)
+                          action = f"Deleted role {role_name}"
+                      except Exception as e:
+                          action = f"Error deleting role {role_name}: {str(e)}"
+                          
+                  elif event_name in ['CreatePolicyVersion', 'SetDefaultPolicyVersion']:
+                      # Handle policy version operations
+                      policy_arn = detail['requestParameters']['policyArn']
+                      if event_name == 'CreatePolicyVersion':
+                          version_id = detail['responseElements']['policyVersion']['versionId']
+                          iam.delete_policy_version(PolicyArn=policy_arn, VersionId=version_id)
+                          action = f"Deleted policy version {version_id} from {policy_arn}"
+                      else:
+                          # For SetDefaultPolicyVersion, we need to revert to previous default
+                          versions = iam.list_policy_versions(PolicyArn=policy_arn)
+                          # Find a previous version to set as default (simplified logic)
+                          for version in versions['Versions']:
+                              if not version['IsDefaultVersion'] and version['VersionId'] != 'v1':
+                                  iam.set_default_policy_version(PolicyArn=policy_arn, VersionId=version['VersionId'])
+                                  action = f"Reverted default policy version for {policy_arn}"
+                                  break
+                          else:
+                              action = f"Could not find suitable version to revert for {policy_arn}"
+                              
+                  elif event_name == 'UpdateAssumeRolePolicy':
+                      role_name = detail['requestParameters']['roleName']
+                      # This would require storing the previous assume role policy
+                      # For now, just log the action
+                      action = f"Assume role policy change detected for {role_name} - manual review required"
+                      
+                  else:
+                      action = f"Unsupported event type: {event_name}"
+                  
+                  return {
+                      'statusCode': 200,
+                      'body': json.dumps({
+                          'message': 'Policy/Role rollback completed',
+                          'action': action,
+                          'event_name': event_name
+                      })
+                  }
+                  
+              except Exception as e:
+                  print(f"Error in policy/role rollback: {str(e)}")
+                  return {
+                      'statusCode': 500,
+                      'body': json.dumps(f'Error: {str(e)}')
+                  }
+      Timeout: 3
+
+  SolarLambdaRDSSnapshotBlock:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      FunctionName: "solar_lambda_rds-snapshot_block"
+      Runtime: "python3.14"
+      Handler: "lambda_function.lambda_handler"
+      Role: !GetAtt SolarLambdaBasicExecutionRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          
+          def lambda_handler(event, context):
+              rds = boto3.client('rds')
+              try:
+                  # Extract information from CloudTrail event
+                  detail = event['detail']
+                  db_snapshot_identifier = detail['requestParameters']['dBSnapshotIdentifier']
+                  
+                  # Block public access to the snapshot
+                  rds.modify_db_snapshot_attribute(
+                      DBSnapshotIdentifier=db_snapshot_identifier,
+                      AttributeName='restore',
+                      ValuesToRemove=['all']
+                  )
+                  
+                  return {
+                      'statusCode': 200,
+                      'body': json.dumps({
+                          'message': 'RDS snapshot public access blocked',
+                          'snapshot': db_snapshot_identifier,
+                          'action': 'removed_public_restore_access'
+                      })
+                  }
+                  
+              except Exception as e:
+                  print(f"Error blocking RDS snapshot public access: {str(e)}")
+                  return {
+                      'statusCode': 500,
+                      'body': json.dumps(f'Error: {str(e)}')
+                  }
+      Timeout: 3
+
+  SolarLambdaRDSSnapshotSlack:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      FunctionName: "solar_lambda_rds-snapshot_slack"
+      Runtime: "python3.14"
+      Handler: "lambda_function.lambda_handler"
+      Role: !GetAtt SolarLambdaBasicExecutionRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          import urllib3
+          import os
+          
+          def lambda_handler(event, context):
+              webhook_url = os.environ['SLACK_WEBHOOK_URL']
+              http = urllib3.PoolManager()
+              
+              try:
+                  # Process the result from RDS snapshot block function
+                  message_text = "🛡️ RDS Security Action Completed:\n"
+                  
+                  if isinstance(event, dict):
+                      if 'body' in event:
+                          body = json.loads(event['body']) if isinstance(event['body'], str) else event['body']
+                          snapshot = body.get('snapshot', 'Unknown')
+                          action = body.get('action', 'Unknown action')
+                          message_text += f"Snapshot: `{snapshot}`\n"
+                          message_text += f"Action: {action}\n"
+                      else:
+                          message_text += f"Event processed: {json.dumps(event)[:500]}\n"
+                  
+                  message = {
+                      "text": message_text,
+                      "username": "Solar RDS Security Bot",
+                      "icon_emoji": ":database:"
+                  }
+                  
+                  response = http.request('POST', webhook_url,
+                                        body=json.dumps(message),
+                                        headers={'Content-Type': 'application/json'})
+                  
+                  return {
+                      'statusCode': 200,
+                      'body': json.dumps('RDS security notification sent to Slack')
+                  }
+                  
+              except Exception as e:
+                  print(f"Error sending RDS notification to Slack: {str(e)}")
+                  return {
+                      'statusCode': 500,
+                      'body': json.dumps(f'Error: {str(e)}')
+                  }
+      Environment:
+        Variables:
+          SLACK_WEBHOOK_URL: !Ref SlackWebhookURL
+      Timeout: 3
+
+  SolarLambdaIAMSOARSlack:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      FunctionName: "solar_lambda_iam-soar_slack"
+      Runtime: "python3.14"
+      Handler: "lambda_function.lambda_handler"
+      Role: !GetAtt SolarLambdaBasicExecutionRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          import urllib3
+          import os
+          
+          def lambda_handler(event, context):
+              webhook_url = os.environ['SLACK_WEBHOOK_URL']
+              http = urllib3.PoolManager()
+              
+              try:
+                  message_text = "🔐 IAM SOAR Action Completed:\n"
+                  
+                  # Extract information from the Step Function result
+                  if 'detail' in event and 'eventName' in event['detail']:
+                      event_name = event['detail']['eventName']
+                      user_name = event['detail']['requestParameters'].get('userName', 'Unknown')
+                      
+                      message_text += f"Event: `{event_name}`\n"
+                      message_text += f"User: `{user_name}`\n"
+                      
+                      if event_name in ['AttachUserPolicy', 'PutUserPolicy']:
+                          message_text += "Action: Policy attachment blocked and rolled back\n"
+                      elif event_name == 'CreateAccessKey':
+                          message_text += "Action: Access key creation blocked and key deleted\n"
+                      elif event_name == 'DeactivateMFADevice':
+                          message_text += "Action: User blocked due to MFA deactivation\n"
+                      elif event_name == 'CreateUser':
+                          message_text += "Action: Unauthorized user creation blocked\n"
+                  
+                  message_text += "\n⚠️ Security team has been notified for manual review."
+                  
+                  message = {
+                      "text": message_text,
+                      "username": "Solar IAM SOAR Bot",
+                      "icon_emoji": ":key:"
+                  }
+                  
+                  response = http.request('POST', webhook_url,
+                                        body=json.dumps(message),
+                                        headers={'Content-Type': 'application/json'})
+                  
+                  return {
+                      'statusCode': 200,
+                      'body': json.dumps('IAM SOAR notification sent to Slack')
+                  }
+                  
+              except Exception as e:
+                  print(f"Error sending IAM SOAR notification to Slack: {str(e)}")
+                  return {
+                      'statusCode': 500,
+                      'body': json.dumps(f'Error: {str(e)}')
+                  }
+      Environment:
+        Variables:
+          SLACK_WEBHOOK_URL: !Ref SlackWebhookURL
+      Timeout: 3
+
+  SolarLambdaKinesisCloudWatchLogs:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      FunctionName: "solar_lambda_kinesis-cloudwatchlogs"
+      Runtime: "python3.13"
+      Handler: "lambda_function.lambda_handler"
+      Role: !GetAtt SolarLambdaBasicExecutionRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import base64
+          import gzip
+          
+          def lambda_handler(event, context):
+              firehose = boto3.client('firehose')
+              
+              try:
+                  # Process Kinesis records
+                  for record in event['Records']:
+                      # Decode the data
+                      compressed_payload = base64.b64decode(record['kinesis']['data'])
+                      uncompressed_payload = gzip.decompress(compressed_payload)
+                      log_data = json.loads(uncompressed_payload)
+                      
+                      # Send to Kinesis Firehose
+                      firehose.put_record(
+                          DeliveryStreamName='solar-firehose-apigateway-s3',
+                          Record={
+                              'Data': json.dumps(log_data)
+                          }
+                      )
+                  
+                  return {
+                      'statusCode': 200,
+                      'body': json.dumps('Logs processed and sent to Firehose')
+                  }
+                  
+              except Exception as e:
+                  print(f"Error processing Kinesis logs: {str(e)}")
+                  return {
+                      'statusCode': 500,
+                      'body': json.dumps(f'Error: {str(e)}')
+                  }
+      Timeout: 63
+
+  SolarLambdaLogsS3:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      FunctionName: "solar_lambda_logs-S3"
+      Runtime: "python3.14"
+      Handler: "lambda_function.lambda_handler"
+      Role: !GetAtt SolarLambdaBasicExecutionRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          from datetime import datetime, timedelta
+          
+          def lambda_handler(event, context):
+              logs_client = boto3.client('logs')
+              s3_client = boto3.client('s3')
+              
+              try:
+                  # Export CloudWatch logs to S3
+                  log_groups = [
+                      '/aws/lambda/solar_lambda_to-slack',
+                      '/aws/lambda/solar_lambda_waf-sf',
+                      'solar-cloudtrail-log',
+                      '/aws/waf/cloudfront'
+                  ]
+                  
+                  for log_group in log_groups:
+                      try:
+                          # Calculate time range (last 24 hours)
+                          end_time = datetime.now()
+                          start_time = end_time - timedelta(hours=24)
+                          
+                          # Create export task
+                          task_name = f"solar-export-{log_group.replace('/', '-')}-{int(end_time.timestamp())}"
+                          
+                          response = logs_client.create_export_task(
+                              logGroupName=log_group,
+                              fromTime=int(start_time.timestamp() * 1000),
+                              to=int(end_time.timestamp() * 1000),
+                              destination='solar-s3-opensearch',
+                              destinationPrefix=f'exported-logs/{log_group.replace("/", "-")}'
+                          )
+                          
+                          print(f"Export task created for {log_group}: {response['taskId']}")
+                          
+                      except Exception as e:
+                          print(f"Error exporting {log_group}: {str(e)}")
+                          continue
+                  
+                  return {
+                      'statusCode': 200,
+                      'body': json.dumps('Log export tasks initiated')
+                  }
+                  
+              except Exception as e:
+                  print(f"Error in log export process: {str(e)}")
+                  return {
+                      'statusCode': 500,
+                      'body': json.dumps(f'Error: {str(e)}')
+                  }
+      Timeout: 303
+
+  SolarLambdaCloudTrailSF:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      FunctionName: "solar_lambda_cloudtrail-sf"
+      Runtime: "python3.14"
+      Handler: "lambda_function.lambda_handler"
+      Role: !GetAtt SolarLambdaBasicExecutionRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import base64
+          import gzip
+          from datetime import datetime
+          
+          def lambda_handler(event, context):
+              stepfunctions = boto3.client('stepfunctions')
+              events_client = boto3.client('events')
+              
+              try:
+                  # Parse CloudWatch Logs event from CloudTrail
+                  if 'awslogs' in event:
+                      compressed_payload = base64.b64decode(event['awslogs']['data'])
+                      uncompressed_payload = gzip.decompress(compressed_payload)
+                      log_data = json.loads(uncompressed_payload)
+                      
+                      # Process CloudTrail events
+                      for log_event in log_data['logEvents']:
+                          cloudtrail_event = json.loads(log_event['message'])
+                          
+                          # Check for high-risk events
+                          high_risk_events = [
+                              'CreateUser', 'DeleteUser', 'CreateAccessKey', 'DeleteAccessKey',
+                              'AttachUserPolicy', 'DetachUserPolicy', 'CreateRole', 'DeleteRole',
+                              'RunInstances', 'TerminateInstances', 'CreateSecurityGroup',
+                              'AuthorizeSecurityGroupIngress', 'RevokeSecurityGroupIngress',
+                              'ModifyDBSnapshotAttribute'
+                          ]
+                          
+                          if cloudtrail_event.get('eventName') in high_risk_events:
+                              # Determine severity
+                              severity = "MEDIUM"
+                              if cloudtrail_event.get('eventName') in ['CreateUser', 'CreateAccessKey', 'AttachUserPolicy']:
+                                  severity = "HIGH"
+                              
+                              # Create security incident
+                              incident_data = {
+                                  'alertId': f"cloudtrail-{datetime.now().strftime('%Y%m%d-%H%M%S')}",
+                                  'severity': severity,
+                                  'alertType': f"CLOUDTRAIL_{cloudtrail_event.get('eventName')}",
+                                  'originalAlertType': 'CLOUDTRAIL_EVENT',
+                                  'resourceType': 'aws-api',
+                                  'sourceIp': cloudtrail_event.get('sourceIPAddress', 'unknown'),
+                                  'targetResource': cloudtrail_event.get('resources', [{}])[0].get('ARN', 'unknown'),
+                                  'cloudTrailDetails': cloudtrail_event,
+                                  'timestamp': datetime.now().isoformat()
+                              }
+                              
+                              # Start security incident workflow
+                              stepfunctions.start_execution(
+                                  stateMachineArn=f'arn:aws:states:{context.invoked_function_arn.split(":")[3]}:{context.invoked_function_arn.split(":")[4]}:stateMachine:solar_sf_security-incident',
+                                  input=json.dumps(incident_data),
+                                  name=f'cloudtrail-{datetime.now().strftime("%Y%m%d%H%M%S")}'
+                              )
+                  
+                  return {
+                      'statusCode': 200,
+                      'body': json.dumps('CloudTrail security analysis completed')
+                  }
+                  
+              except Exception as e:
+                  print(f"Error processing CloudTrail event: {str(e)}")
+                  return {
+                      'statusCode': 500,
+                      'body': json.dumps(f'Error: {str(e)}')
+                  }
+      Timeout: 63
+
+  SolarLambdaSecurityIncidentSlack:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      FunctionName: "solar_lambda_SecurityIncident-slack"
+      Runtime: "python3.14"
+      Handler: "lambda_function.lambda_handler"
+      Role: !GetAtt SolarLambdaBasicExecutionRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          import urllib3
+          import os
+          
+          def lambda_handler(event, context):
+              webhook_url = os.environ['SLACK_WEBHOOK_URL']
+              http = urllib3.PoolManager()
+              
+              try:
+                  # Process security incident notification
+                  notification_type = event.get('notificationType', 'GENERAL_SECURITY_ALERT')
+                  severity = event.get('severity', 'UNKNOWN')
+                  alert_id = event.get('alertId', 'unknown')
+                  
+                  # Determine emoji based on severity
+                  emoji_map = {
+                      'CRITICAL': ':red_circle:',
+                      'HIGH': ':orange_circle:',
+                      'MEDIUM': ':yellow_circle:',
+                      'LOW': ':green_circle:',
+                      'INFO': ':information_source:'
+                  }
+                  emoji = emoji_map.get(severity, ':warning:')
+                  
+                  message_text = f"{emoji} **SECURITY INCIDENT ALERT** {emoji}\n\n"
+                  message_text += f"**Alert ID:** {alert_id}\n"
+                  message_text += f"**Severity:** {severity}\n"
+                  message_text += f"**Type:** {notification_type}\n"
+                  
+                  if 'alertType' in event:
+                      message_text += f"**Alert Type:** {event['alertType']}\n"
+                  
+                  if 'sourceIp' in event:
+                      message_text += f"**Source IP:** {event['sourceIp']}\n"
+                  
+                  if 'targetResource' in event:
+                      message_text += f"**Target Resource:** {event['targetResource']}\n"
+                  
+                  if 'message' in event:
+                      message_text += f"\n**Details:**\n{event['message']}\n"
+                  
+                  if 'responseData' in event:
+                      message_text += f"\n**Response Actions:**\n```{json.dumps(event['responseData'], indent=2)[:1000]}```\n"
+                  
+                  if notification_type == 'PRODUCTION_CRITICAL_RESPONSE_COMPLETE':
+                      message_text += "\n🚨 **CRITICAL PRODUCTION INCIDENT** 🚨\n"
+                      message_text += "Automated response actions have been taken.\n"
+                      message_text += "**IMMEDIATE MANUAL REVIEW REQUIRED**\n"
+                  
+                  message_text += f"\n**Timestamp:** {event.get('timestamp', 'unknown')}"
+                  
+                  message = {
+                      "text": message_text,
+                      "username": "Solar Security Incident Bot",
+                      "icon_emoji": ":rotating_light:",
+                      "attachments": [{
+                          "color": "danger" if severity in ['CRITICAL', 'HIGH'] else "warning",
+                          "fields": [{
+                              "title": "Incident Summary",
+                              "value": f"Alert {alert_id} - {severity} severity {notification_type}",
+                              "short": False
+                          }]
+                      }]
+                  }
+                  
+                  response = http.request('POST', webhook_url,
+                                        body=json.dumps(message),
+                                        headers={'Content-Type': 'application/json'})
+                  
+                  return {
+                      'statusCode': 200,
+                      'body': json.dumps('Security incident notification sent to Slack')
+                  }
+                  
+              except Exception as e:
+                  print(f"Error sending security incident notification: {str(e)}")
+                  return {
+                      'statusCode': 500,
+                      'body': json.dumps(f'Error: {str(e)}')
+                  }
+      Environment:
+        Variables:
+          SLACK_WEBHOOK_URL: !Ref SlackWebhookURL
+      Timeout: 63
+
+  SolarLambdaSecurityHubSF:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      FunctionName: "solar_lambda_SecurityHub-sf"
+      Runtime: "python3.14"
+      Handler: "lambda_function.lambda_handler"
+      Role: !GetAtt SolarLambdaBasicExecutionRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          from datetime import datetime
+          
+          def lambda_handler(event, context):
+              stepfunctions = boto3.client('stepfunctions')
+              
+              try:
+                  # Process Security Hub findings
+                  if 'detail' in event and 'findings' in event['detail']:
+                      for finding in event['detail']['findings']:
+                          severity = finding.get('Severity', {}).get('Label', 'MEDIUM')
+                          
+                          # Create security incident from Security Hub finding
+                          incident_data = {
+                              'alertId': f"securityhub-{datetime.now().strftime('%Y%m%d-%H%M%S')}",
+                              'severity': severity,
+                              'alertType': f"SECURITYHUB_{finding.get('Type', 'UNKNOWN')}",
+                              'originalAlertType': 'SECURITY_HUB_FINDING',
+                              'resourceType': 'security-finding',
+                              'sourceIp': 'security-hub',
+                              'targetResource': finding.get('Resources', [{}])[0].get('Id', 'unknown'),
+                              'securityHubDetails': finding,
+                              'timestamp': datetime.now().isoformat()
+                          }
+                          
+                          # Start security incident workflow for HIGH and CRITICAL findings
+                          if severity in ['HIGH', 'CRITICAL']:
+                              stepfunctions.start_execution(
+                                  stateMachineArn=f'arn:aws:states:{context.invoked_function_arn.split(":")[3]}:{context.invoked_function_arn.split(":")[4]}:stateMachine:solar_sf_security-incident',
+                                  input=json.dumps(incident_data),
+                                  name=f'securityhub-{datetime.now().strftime("%Y%m%d%H%M%S")}'
+                              )
+                  
+                  return {
+                      'statusCode': 200,
+                      'body': json.dumps('Security Hub findings processed')
+                  }
+                  
+              except Exception as e:
+                  print(f"Error processing Security Hub findings: {str(e)}")
+                  return {
+                      'statusCode': 500,
+                      'body': json.dumps(f'Error: {str(e)}')
+                  }
+      Timeout: 63
+
+  # ========== SNS Topic ==========
+  SolarSIEMTopic:
+    Type: "AWS::SNS::Topic"
+    Properties:
+      TopicName: "solar_siem_topic"
+      DisplayName: "Solar SIEM Notifications"
+
+  SolarSNSSubscriptionToSlack:
+    Type: "AWS::SNS::Subscription"
+    Properties:
+      Protocol: "lambda"
+      TopicArn: !Ref SolarSIEMTopic
+      Endpoint: !GetAtt SolarLambdaToSlack.Arn
+
+  SolarSNSSubscriptionToOpenSearch:
+    Type: "AWS::SNS::Subscription"
+    Properties:
+      Protocol: "lambda"
+      TopicArn: !Ref SolarSIEMTopic
+      Endpoint: !GetAtt SolarLambdaToOpenSearch.Arn
+
+  # ========== Kinesis Firehose ==========
+  SolarKinesisFirehoseAPIGatewayS3:
+    Type: "AWS::KinesisFirehose::DeliveryStream"
+    Properties:
+      DeliveryStreamName: "solar-firehose-apigateway-s3"
+      DeliveryStreamType: "DirectPut"
+      S3DestinationConfiguration:
+        BucketARN: !GetAtt SolarS3CloudWatch.Arn
+        Prefix: "apigateway-logs/"
+        BufferingHints:
+          SizeInMBs: 1
+          IntervalInSeconds: 60
+        CompressionFormat: "GZIP"
+        RoleARN: !GetAtt SolarFirehoseRole.Arn
+
+  SolarKinesisFirehoseWAFR:
+    Type: "AWS::KinesisFirehose::DeliveryStream"
+    Properties:
+      DeliveryStreamName: "aws-waf-logs-solar-kfs-r"
+      DeliveryStreamType: "DirectPut"
+      S3DestinationConfiguration:
+        BucketARN: !GetAtt AWSWafLogsS3Solar.Arn
+        Prefix: "waf-logs-regional/"
+        BufferingHints:
+          SizeInMBs: 5
+          IntervalInSeconds: 300
+        CompressionFormat: "GZIP"
+        RoleARN: !GetAtt SolarFirehoseRole.Arn
+
+  SolarKinesisFirehoseWAFG:
+    Type: "AWS::KinesisFirehose::DeliveryStream"
+    Properties:
+      DeliveryStreamName: "aws-waf-logs-solar-kfs-g"
+      DeliveryStreamType: "DirectPut"
+      S3DestinationConfiguration:
+        BucketARN: !GetAtt AWSWafLogsS3Solar.Arn
+        Prefix: "waf-logs-global/"
+        BufferingHints:
+          SizeInMBs: 5
+          IntervalInSeconds: 300
+        CompressionFormat: "GZIP"
+        RoleARN: !GetAtt SolarFirehoseRole.Arn
+
+  # ========== Step Functions ==========
+  SolarSecurityIncidentStateMachine:
+    Type: "AWS::StepFunctions::StateMachine"
+    Properties:
+      StateMachineName: "solar_sf_security-incident"
+      RoleArn: !GetAtt SolarSecurityIncidentRole.Arn
+      LoggingConfiguration:
+        Level: "ALL"
+        IncludeExecutionData: true
+        Destinations:
+        - CloudWatchLogsLogGroup:
+            LogGroupArn: !Sub "${SolarLogGroupSecurityIncidentSF}:*"
+      DefinitionString: !Sub |
+        {
+          "Comment": "Complete Security Incident Response State Machine",
+          "StartAt": "ReceiveSecurityAlert",
+          "States": {
+            "ReceiveSecurityAlert": {
+              "Type": "Pass",
+              "Parameters": {
+                "alertId.$$": "$$.alertId",
+                "severity.$$": "$$.severity", 
+                "alertType.$$": "$$.alertType",
+                "sourceIp.$$": "$$.sourceIp",
+                "targetResource.$$": "$$.targetResource",
+                "timestamp.$": "$$.State.EnteredTime",
+                "status": "received"
+              },
+              "Next": "ClassifyThreatLevel"
+            },
+            "ClassifyThreatLevel": {
+              "Type": "Choice",
+              "Choices": [
+                {
+                  "Variable": "$.severity",
+                  "StringEquals": "CRITICAL",
+                  "Next": "CriticalThreatResponse"
+                },
+                {
+                  "Variable": "$.severity", 
+                  "StringEquals": "HIGH",
+                  "Next": "HighThreatResponse"
+                },
+                {
+                  "Variable": "$.severity",
+                  "StringEquals": "MEDIUM", 
+                  "Next": "MediumThreatResponse"
+                }
+              ],
+              "Default": "LowThreatResponse"
+            },
+            "CriticalThreatResponse": {
+              "Type": "Parallel",
+              "Branches": [
+                {
+                  "StartAt": "BlockMaliciousIP",
+                  "States": {
+                    "BlockMaliciousIP": {
+                      "Type": "Task",
+                      "Resource": "arn:aws:states:::aws-sdk:wafv2:getIPSet",
+                      "Parameters": {
+                        "Scope": "CLOUDFRONT",
+                        "Id": "${SolarWAFIPSetCloudFront}",
+                        "Name": "BlockedIPset"
+                      },
+                      "Next": "UpdateWAFIPSet"
+                    },
+                    "UpdateWAFIPSet": {
+                      "Type": "Task", 
+                      "Resource": "arn:aws:states:::aws-sdk:wafv2:updateIPSet",
+                      "Parameters": {
+                        "Scope": "CLOUDFRONT",
+                        "Id": "${SolarWAFIPSetCloudFront}",
+                        "Name": "BlockedIPset",
+                        "Addresses.$$": "States.Array(States.Format('{}/32', $$.sourceIp))",
+                        "LockToken.$$": "$$.LockToken"
+                      },
+                      "End": true
+                    }
+                  }
+                },
+                {
+                  "StartAt": "IsolateResource",
+                  "States": {
+                    "IsolateResource": {
+                      "Type": "Choice",
+                      "Choices": [
+                        {
+                          "Variable": "$.targetResource",
+                          "StringMatches": "i-*",
+                          "Next": "IsolateEC2Instance"
+                        }
+                      ],
+                      "Default": "SkipIsolation"
+                    },
+                    "IsolateEC2Instance": {
+                      "Type": "Task",
+                      "Resource": "arn:aws:states:::aws-sdk:ec2:modifyInstanceAttribute",
+                      "Parameters": {
+                        "InstanceId.$$": "$$.targetResource",
+                        "Groups": ["${SolarSecurityIsolationGroup}"]
+                      },
+                      "End": true
+                    },
+                    "SkipIsolation": {
+                      "Type": "Pass",
+                      "End": true
+                    }
+                  }
+                }
+              ],
+              "Next": "SendCriticalSlackNotification"
+            },
+            "HighThreatResponse": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::aws-sdk:cloudwatch:putMetricAlarm",
+              "Parameters": {
+                "AlarmName.$$": "States.Format('SecurityIncident-{}-NetworkActivity', $$.alertId)",
+                "ComparisonOperator": "GreaterThanThreshold",
+                "EvaluationPeriods": 2,
+                "MetricName": "NetworkPacketsOut",
+                "Namespace": "AWS/EC2",
+                "Period": 300,
+                "Statistic": "Sum",
+                "Threshold": 1000,
+                "AlarmDescription.$$": "States.Format('HIGH security incident monitoring: {}', $$.alertId)"
+              },
+              "Next": "SendHighSlackNotification"
+            },
+            "MediumThreatResponse": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::aws-sdk:ec2:revokeSecurityGroupIngress",
+              "Parameters": {
+                "GroupId": "${SolarSecurityDenyListGroup}",
+                "IpPermissions": [{
+                  "IpProtocol": "-1",
+                  "IpRanges": [{
+                    "CidrIp.$$": "States.Format('{}/32', $$.sourceIp)",
+                    "Description.$$": "States.Format('BLOCKED: MEDIUM incident {}', $$.alertId)"
+                  }]
+                }]
+              },
+              "Catch": [{
+                "ErrorEquals": ["States.ALL"],
+                "Next": "SendMediumSlackNotification"
+              }],
+              "Next": "SendMediumSlackNotification"
+            },
+            "LowThreatResponse": {
+              "Type": "Pass",
+              "Parameters": {
+                "threatLevel": "LOW",
+                "action": "logged_for_monitoring"
+              },
+              "Next": "UpdateSecurityMetrics"
+            },
+            "SendCriticalSlackNotification": {
+              "Type": "Task",
+              "Resource": "${SolarLambdaSecurityIncidentSlack.Arn}",
+              "Parameters": {
+                "notificationType": "PRODUCTION_CRITICAL_RESPONSE_COMPLETE",
+                "alertId.$$": "$$.alertId",
+                "severity": "CRITICAL",
+                "message": "CRITICAL security incident - Automated response actions taken"
+              },
+              "Next": "UpdateSecurityMetrics"
+            },
+            "SendHighSlackNotification": {
+              "Type": "Task", 
+              "Resource": "${SolarLambdaSecurityIncidentSlack.Arn}",
+              "Parameters": {
+                "notificationType": "HIGH_SECURITY_ALERT",
+                "alertId.$$": "$$.alertId", 
+                "severity": "HIGH",
+                "message": "HIGH security incident - Monitoring enabled"
+              },
+              "Next": "UpdateSecurityMetrics"
+            },
+            "SendMediumSlackNotification": {
+              "Type": "Task",
+              "Resource": "${SolarLambdaSecurityIncidentSlack.Arn}", 
+              "Parameters": {
+                "notificationType": "MEDIUM_SECURITY_ALERT",
+                "alertId.$$": "$$.alertId",
+                "severity": "MEDIUM", 
+                "message": "MEDIUM security incident - IP blocking attempted"
+              },
+              "Next": "UpdateSecurityMetrics"
+            },
+            "UpdateSecurityMetrics": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::aws-sdk:cloudwatch:putMetricData",
+              "Parameters": {
+                "Namespace": "Security/Incidents",
+                "MetricData": [{
+                  "MetricName": "IncidentCount",
+                  "Value": 1,
+                  "Unit": "Count",
+                  "Dimensions": [{
+                    "Name": "Severity",
+                    "Value.$$": "$$.severity"
+                  }]
+                }]
+              },
+              "End": true
+            }
+          }
+        }
+
+  SolarIAMSOARStateMachine:
+    Type: "AWS::StepFunctions::StateMachine"
+    Properties:
+      StateMachineName: "solar_iam-soar_sf"
+      RoleArn: !GetAtt SolarIAMSOARRole.Arn
+      LoggingConfiguration:
+        Level: "ALL"
+        IncludeExecutionData: true
+        Destinations:
+        - CloudWatchLogsLogGroup:
+            LogGroupArn: !Sub "${SolarLogGroupIAMSOARSF}:*"
+      DefinitionString: !Sub |
+        {
+          "Comment": "IAM SOAR State Machine for automated response",
+          "StartAt": "EventNameBranch",
+          "States": {
+            "EventNameBranch": {
+              "Type": "Choice",
+              "Choices": [
+                {
+                  "Or": [
+                    {
+                      "Variable": "$.detail.eventName",
+                      "StringEquals": "AttachUserPolicy"
+                    },
+                    {
+                      "Variable": "$.detail.eventName", 
+                      "StringEquals": "PutUserPolicy"
+                    }
+                  ],
+                  "Next": "LambdaPolicyRollback"
+                },
+                {
+                  "Variable": "$.detail.eventName",
+                  "StringEquals": "CreateAccessKey",
+                  "Next": "LambdaAccessKeyDelete"
+                },
+                {
+                  "Variable": "$.detail.eventName",
+                  "StringEquals": "DeactivateMFADevice",
+                  "Next": "LambdaMFAUserDisable"
+                },
+                {
+                  "Variable": "$.detail.eventName",
+                  "StringEquals": "CreateUser",
+                  "Next": "LambdaUserDelete"
+                },
+                {
+                  "Or": [
+                    {
+                      "Variable": "$.detail.eventName",
+                      "StringEquals": "CreatePolicy"
+                    },
+                    {
+                      "Variable": "$.detail.eventName",
+                      "StringEquals": "CreateRole"
+                    },
+                    {
+                      "Variable": "$.detail.eventName",
+                      "StringEquals": "CreatePolicyVersion"
+                    },
+                    {
+                      "Variable": "$.detail.eventName",
+                      "StringEquals": "UpdateAssumeRolePolicy"
+                    }
+                  ],
+                  "Next": "LambdaPolicyOrRoleRollback"
+                }
+              ],
+              "Default": "FailEnd"
+            },
+            "LambdaPolicyRollback": {
+              "Type": "Task",
+              "Resource": "${SolarLambdaIAMPolicyRollback.Arn}",
+              "Next": "SendToSlack"
+            },
+            "LambdaAccessKeyDelete": {
+              "Type": "Task",
+              "Resource": "${SolarLambdaIAMAccessKeyRollback.Arn}",
+              "Next": "SendToSlack"
+            },
+            "LambdaMFAUserDisable": {
+              "Type": "Task",
+              "Resource": "${SolarLambdaIAMMFARevoke.Arn}",
+              "Next": "SendToSlack"
+            },
+            "LambdaUserDelete": {
+              "Type": "Task",
+              "Resource": "${SolarLambdaIAMUserRevoke.Arn}",
+              "Next": "SendToSlack"
+            },
+            "LambdaPolicyOrRoleRollback": {
+              "Type": "Task",
+              "Resource": "${SolarLambdaPolicyMakeFixRollback.Arn}",
+              "Next": "SendToSlack"
+            },
+            "SendToSlack": {
+              "Type": "Task",
+              "Resource": "${SolarLambdaIAMSOARSlack.Arn}",
+              "Next": "SuccessEnd"
+            },
+            "SuccessEnd": {
+              "Type": "Succeed"
+            },
+            "FailEnd": {
+              "Type": "Fail",
+              "Error": "EventNameNotSupported",
+              "Cause": "Unsupported event name"
+            }
+          }
+        }
+
+  SolarRDSSnapshotBlockStateMachine:
+    Type: "AWS::StepFunctions::StateMachine"
+    Properties:
+      StateMachineName: "solar_rds-snapshot-block_sf"
+      RoleArn: !GetAtt SolarRDSSnapshotRole.Arn
+      LoggingConfiguration:
+        Level: "ALL"
+        IncludeExecutionData: true
+        Destinations:
+        - CloudWatchLogsLogGroup:
+            LogGroupArn: !Sub "${SolarLogGroupRDSSnapshotSF}:*"
+      DefinitionString: !Sub |
+        {
+          "Comment": "RDS Snapshot Security Block State Machine",
+          "StartAt": "rds snapshot block",
+          "States": {
+            "rds snapshot block": {
+              "Type": "Task",
+              "Resource": "${SolarLambdaRDSSnapshotBlock.Arn}",
+              "Next": "status to slack"
+            },
+            "status to slack": {
+              "Type": "Task",
+              "Resource": "${SolarLambdaRDSSnapshotSlack.Arn}",
+              "End": true
+            }
+          }
+        }
+
+  SolarS3PublicBlockStateMachine:
+    Type: "AWS::StepFunctions::StateMachine"
+    Properties:
+      StateMachineName: "solar_s3-public-block_stepfunction"
+      RoleArn: !GetAtt SolarStepFunctionRole.Arn
+      DefinitionString: !Sub |
+        {
+          "Comment": "S3 Security Auto-Remediation and Slack Reporting Pipeline",
+          "StartAt": "CheckEventType",
+          "States": {
+            "CheckEventType": {
+              "Type": "Choice",
+              "Choices": [
+                {
+                  "Variable": "$.detail.eventName",
+                  "StringEquals": "PutBucketVersioning",
+                  "Next": "s3-versioning"
+                },
+                {
+                  "Variable": "$.detail.eventName",
+                  "StringEquals": "PutBucketPublicAccessBlock",
+                  "Next": "s3-public-block"
+                }
+              ],
+              "Default": "UnknownEvent"
+            },
+            "s3-versioning": {
+              "Type": "Task",
+              "Resource": "${SolarLambdaS3Versioning.Arn}",
+              "ResultPath": "$.versioning_result",
+              "Next": "report-slack"
+            },
+            "s3-public-block": {
+              "Type": "Task",
+              "Resource": "${SolarLambdaS3PublicBlock.Arn}",
+              "ResultPath": "$.public_block_result",
+              "Next": "report-slack"
+            },
+            "report-slack": {
+              "Type": "Task",
+              "Resource": "${SolarLambdaReportSlack.Arn}",
+              "End": true
+            },
+            "UnknownEvent": {
+              "Type": "Fail",
+              "Cause": "Unsupported event type"
+            }
+          }
+        }
+
+  # ========== WAF ==========
+  SolarWAFCloudFront:
+    Type: "AWS::WAFv2::WebACL"
+    Properties:
+      Name: "solar-waf-acl-g"
+      Scope: "CLOUDFRONT"
+      DefaultAction:
+        Allow: {}
+      CustomResponseBodies:
+        attack_text:
+          ContentType: "TEXT_PLAIN"
+          Content: "Solar detected your attack. Good bye~"
+      Rules:
+      - Name: "solar_blockedIPs"
+        Priority: 0
+        Statement:
+          IPSetReferenceStatement:
+            Arn: !GetAtt SolarWAFIPSetCloudFront.Arn
+        Action:
+          Block:
+            CustomResponse:
+              ResponseCode: 403
+              CustomResponseBodyKey: "attack_text"
+        VisibilityConfig:
+          SampledRequestsEnabled: true
+          MetricName: "test"
+          CloudWatchMetricsEnabled: true
+      - Name: "AWS-AWSManagedRulesCommonRuleSet"
+        Priority: 1
+        Statement:
+          ManagedRuleGroupStatement:
+            VendorName: "AWS"
+            Name: "AWSManagedRulesCommonRuleSet"
+        OverrideAction:
+          None: {}
+        VisibilityConfig:
+          SampledRequestsEnabled: true
+          MetricName: "AWS-AWSManagedRulesCommonRuleSet"
+          CloudWatchMetricsEnabled: true
+      - Name: "AWS-AWSManagedRulesKnownBadInputsRuleSet"
+        Priority: 2
+        Statement:
+          ManagedRuleGroupStatement:
+            VendorName: "AWS"
+            Name: "AWSManagedRulesKnownBadInputsRuleSet"
+        OverrideAction:
+          None: {}
+        VisibilityConfig:
+          SampledRequestsEnabled: true
+          MetricName: "AWS-AWSManagedRulesKnownBadInputsRuleSet"
+          CloudWatchMetricsEnabled: true
+      - Name: "AWS-AWSManagedRulesSQLiRuleSet"
+        Priority: 3
+        Statement:
+          ManagedRuleGroupStatement:
+            VendorName: "AWS"
+            Name: "AWSManagedRulesSQLiRuleSet"
+        OverrideAction:
+          None: {}
+        VisibilityConfig:
+          SampledRequestsEnabled: true
+          MetricName: "AWS-AWSManagedRulesSQLiRuleSet"
+          CloudWatchMetricsEnabled: true
+      VisibilityConfig:
+        SampledRequestsEnabled: true
+        MetricName: "solar-waf-acl-g"
+        CloudWatchMetricsEnabled: true
+
+  SolarWAFRegional:
+    Type: "AWS::WAFv2::WebACL"
+    Properties:
+      Name: "solar-waf-acl-r"
+      Scope: "REGIONAL"
+      DefaultAction:
+        Allow: {}
+      Rules:
+      - Name: "test"
+        Priority: 0
+        Statement:
+          IPSetReferenceStatement:
+            Arn: !GetAtt SolarWAFIPSetRegional.Arn
+        Action:
+          Block: {}
+        VisibilityConfig:
+          SampledRequestsEnabled: true
+          MetricName: "test"
+          CloudWatchMetricsEnabled: true
+      - Name: "AWS-AWSManagedRulesCommonRuleSet"
+        Priority: 1
+        Statement:
+          ManagedRuleGroupStatement:
+            VendorName: "AWS"
+            Name: "AWSManagedRulesCommonRuleSet"
+        OverrideAction:
+          None: {}
+        VisibilityConfig:
+          SampledRequestsEnabled: true
+          MetricName: "AWS-AWSManagedRulesCommonRuleSet"
+          CloudWatchMetricsEnabled: true
+      VisibilityConfig:
+        SampledRequestsEnabled: true
+        MetricName: "solar-waf-acl-r"
+        CloudWatchMetricsEnabled: true
+
+  SolarWAFIPSetCloudFront:
+    Type: "AWS::WAFv2::IPSet"
+    Properties:
+      Name: "BlockedIPset"
+      Scope: "CLOUDFRONT"
+      IPAddressVersion: "IPV4"
+      Addresses:
+      - "1.2.3.4/32"
+      Description: "Blocked IPs for CloudFront"
+
+  SolarWAFIPSetRegional:
+    Type: "AWS::WAFv2::IPSet"
+    Properties:
+      Name: "test"
+      Scope: "REGIONAL"
+      IPAddressVersion: "IPV4"
+      Addresses:
+      - "1.2.3.4/32"
+      Description: "Blocked IPs for Regional"
+
+  # ========== WAF Logging ==========
+  SolarWAFLoggingCloudFront:
+    Type: "AWS::WAFv2::LoggingConfiguration"
+    Properties:
+      ResourceArn: !GetAtt SolarWAFCloudFront.Arn
+      LogDestinationConfigs:
+      - !GetAtt SolarKinesisFirehoseWAFG.Arn
+
+  SolarWAFLoggingRegional:
+    Type: "AWS::WAFv2::LoggingConfiguration"
+    Properties:
+      ResourceArn: !GetAtt SolarWAFRegional.Arn
+      LogDestinationConfigs:
+      - !GetAtt SolarKinesisFirehoseWAFR.Arn
+
+  # ========== CloudFront Distribution ==========
+  SolarCloudFrontOriginAccessControl:
+    Type: "AWS::CloudFront::OriginAccessControl"
+    Properties:
+      OriginAccessControlConfig:
+        Name: "solar-s3-public-oac"
+        OriginAccessControlOriginType: "s3"
+        SigningBehavior: "always"
+        SigningProtocol: "sigv4"
+        Description: "OAC for Solar S3 Public bucket"
+
+  SolarCloudFrontOriginAccessControlEcommerce:
+    Type: "AWS::CloudFront::OriginAccessControl"
+    Properties:
+      OriginAccessControlConfig:
+        Name: "solar-s3-ecommerce-image-oac"
+        OriginAccessControlOriginType: "s3"
+        SigningBehavior: "always"
+        SigningProtocol: "sigv4"
+        Description: "OAC for Solar S3 Ecommerce Image bucket"
+
+  SolarCloudFrontCachePolicy:
+    Type: "AWS::CloudFront::CachePolicy"
+    Properties:
+      CachePolicyConfig:
+        Name: "Managed-CachingOptimized"
+        Comment: "Policy with caching enabled. Supports Gzip and Brotli compression."
+        MinTTL: 1
+        MaxTTL: 31536000
+        DefaultTTL: 86400
+        ParametersInCacheKeyAndForwardedToOrigin:
+          QueryStringsConfig:
+            QueryStringBehavior: "none"
+          HeadersConfig:
+            HeaderBehavior: "none"
+          CookiesConfig:
+            CookieBehavior: "none"
+          EnableAcceptEncodingGzip: true
+          EnableAcceptEncodingBrotli: true
+
+  SolarCloudFrontOriginRequestPolicy:
+    Type: "AWS::CloudFront::OriginRequestPolicy"
+    Properties:
+      OriginRequestPolicyConfig:
+        Name: "Managed-AllViewerExceptHostHeader"
+        Comment: "Policy to forward all parameters in viewer requests except for the Host header"
+        QueryStringsConfig:
+          QueryStringBehavior: "all"
+        HeadersConfig:
+          HeaderBehavior: "allExcept"
+          Headers:
+          - "host"
+        CookiesConfig:
+          CookieBehavior: "all"
+
+  SolarCloudFrontDistribution:
+    Type: "AWS::CloudFront::Distribution"
+    Properties:
+      DistributionConfig:
+        Comment: "Solar SIEM CloudFront Distribution"
+        DefaultRootObject: "index.html"
+        Enabled: true
+        HttpVersion: "http2"
+        IPV6Enabled: true
+        PriceClass: "PriceClass_All"
+        WebACLId: !GetAtt SolarWAFCloudFront.Arn
+        Origins:
+        - Id: "solar-s3-public-origin"
+          DomainName: !GetAtt SolarS3Public.RegionalDomainName
+          OriginAccessControlId: !Ref SolarCloudFrontOriginAccessControl
+          S3OriginConfig:
+            OriginAccessIdentity: ""
+        - Id: "solar-s3-ecommerce-image-origin"
+          DomainName: !GetAtt SolarS3EcommerceImage.RegionalDomainName
+          OriginAccessControlId: !Ref SolarCloudFrontOriginAccessControlEcommerce
+          S3OriginConfig:
+            OriginAccessIdentity: ""
+        DefaultCacheBehavior:
+          TargetOriginId: "solar-s3-public-origin"
+          ViewerProtocolPolicy: "redirect-to-https"
+          CachePolicyId: !Ref SolarCloudFrontCachePolicy
+          Compress: true
+          AllowedMethods:
+          - "GET"
+          - "HEAD"
+          CachedMethods:
+          - "GET"
+          - "HEAD"
+        CacheBehaviors:
+        - PathPattern: "/images/*"
+          TargetOriginId: "solar-s3-ecommerce-image-origin"
+          ViewerProtocolPolicy: "redirect-to-https"
+          CachePolicyId: !Ref SolarCloudFrontCachePolicy
+          Compress: true
+          AllowedMethods:
+          - "GET"
+          - "HEAD"
+          CachedMethods:
+          - "GET"
+          - "HEAD"
+        ViewerCertificate:
+          CloudFrontDefaultCertificate: true
+
+  # ========== EventBridge Rules ==========
+  SolarS3PublicEventRule:
+    Type: "AWS::Events::Rule"
+    Properties:
+      Name: "solar-s3public-eb"
+      Description: "Determine if s3 bucket is a public setting"
+      State: "ENABLED"
+      EventPattern:
+        detail-type:
+        - "AWS API Call via CloudTrail"
+        detail:
+          eventSource:
+          - "s3.amazonaws.com"
+          requestParameters:
+            PublicAccessBlockConfiguration:
+              BlockPublicAcls:
+              - false
+          eventName:
+          - "PutBucketPublicAccessBlock"
+      Targets:
+      - Arn: !GetAtt SolarS3PublicBlockStateMachine.Arn
+        Id: "s3-public-block-target"
+        RoleArn: !GetAtt SolarEventBridgeRole.Arn
+
+  SolarS3VersioningEventRule:
+    Type: "AWS::Events::Rule"
+    Properties:
+      Name: "solar-s3versioning-eb"
+      Description: "S3 versioning suspended detection"
+      State: "ENABLED"
+      EventPattern:
+        detail-type:
+        - "AWS API Call via CloudTrail"
+        detail:
+          eventSource:
+          - "s3.amazonaws.com"
+          requestParameters:
+            VersioningConfiguration:
+              Status:
+              - "Suspended"
+          eventName:
+          - "PutBucketVersioning"
+      Targets:
+      - Arn: !GetAtt SolarS3PublicBlockStateMachine.Arn
+        Id: "s3-versioning-target"
+        RoleArn: !GetAtt SolarEventBridgeRole.Arn
+
+  SolarIAMSOAREventRule:
+    Type: "AWS::Events::Rule"
+    Properties:
+      Name: "solar_iam-soar_eb"
+      Description: "IAM SOAR EventBridge"
+      State: "ENABLED"
+      EventPattern:
+        detail-type:
+        - "AWS API Call via CloudTrail"
+        source:
+        - "aws.iam"
+        detail:
+          eventSource:
+          - "iam.amazonaws.com"
+          eventName:
+          - "AttachUserPolicy"
+          - "PutUserPolicy"
+          - "CreateAccessKey"
+          - "DeactivateMFADevice"
+          - "CreateUser"
+          - "CreatePolicy"
+          - "CreatePolicyVersion"
+          - "DeletePolicyVersion"
+          - "SetDefaultPolicyVersion"
+          - "CreateRole"
+          - "UpdateAssumeRolePolicy"
+          userIdentity:
+            userName:
+            - anything-but:
+              - "SOLAR_KHD"
+              - "SOLAR_KNH"
+              - "SOLAR_PSM"
+              - "SOLAR_LYJ"
+      Targets:
+      - Arn: !GetAtt SolarIAMSOARStateMachine.Arn
+        Id: "iam-soar-target"
+        RoleArn: !GetAtt SolarEventBridgeRole.Arn
+
+  SolarRDSSnapshotEventRule:
+    Type: "AWS::Events::Rule"
+    Properties:
+      Name: "solar_rds-snapshot_eb"
+      Description: "EventBridge to use RDS snapshot block step function"
+      State: "ENABLED"
+      EventPattern:
+        detail-type:
+        - "AWS API Call via CloudTrail"
+        source:
+        - "aws.rds"
+        detail:
+          eventSource:
+          - "rds.amazonaws.com"
+          requestParameters:
+            valuesToAdd:
+            - "all"
+            attributeName:
+            - "restore"
+          eventName:
+          - "ModifyDBSnapshotAttribute"
+      Targets:
+      - Arn: !GetAtt SolarRDSSnapshotBlockStateMachine.Arn
+        Id: "rds-snapshot-target"
+        RoleArn: !GetAtt SolarEventBridgeRole.Arn
+
+  SolarCloudTrailEventRule:
+    Type: "AWS::Events::Rule"
+    Properties:
+      Name: "solar_cloudtrail_eb"
+      Description: "CloudTrail security events"
+      State: "ENABLED"
+      EventPattern:
+        detail-type:
+        - "AWS API Call via CloudTrail"
+        source:
+        - "aws.cloudtrail"
+        detail:
+          eventSource:
+          - "cloudtrail.amazonaws.com"
+          eventName:
+          - "CreateUser"
+          - "DeleteUser"
+          - "CreateAccessKey"
+          - "DeleteAccessKey"
+          - "AttachUserPolicy"
+          - "DetachUserPolicy"
+          - "CreateRole"
+          - "DeleteRole"
+          - "PutRolePolicy"
+          - "DeleteRolePolicy"
+          - "CreateBucket"
+          - "DeleteBucket"
+          - "PutBucketPolicy"
+          - "DeleteBucketPolicy"
+          - "PutObjectAcl"
+          - "DeleteObject"
+          - "RunInstances"
+          - "TerminateInstances"
+          - "CreateSecurityGroup"
+          - "DeleteSecurityGroup"
+          - "AuthorizeSecurityGroupIngress"
+          - "RevokeSecurityGroupIngress"
+          - "CreateDBInstance"
+          - "DeleteDBInstance"
+          - "ModifyDBInstance"
+          - "CreateDBSnapshot"
+          - "DeleteDBSnapshot"
+      Targets:
+      - Arn: !Ref SolarSIEMTopic
+        Id: "cloudtrail-sns-target"
+        SqsParameters:
+          MessageGroupId: "cloudtrail-events"
+
+  SolarSecurityHubEventRule:
+    Type: "AWS::Events::Rule"
+    Properties:
+      Name: "solar_securityhub_eb"
+      Description: "Security Hub findings"
+      State: "ENABLED"
+      EventPattern:
+        source:
+        - "aws.securityhub"
+        detail-type:
+        - "Security Hub Findings - Imported"
+        detail:
+          findings:
+            Workflow:
+              Status:
+              - "NEW"
+            Severity:
+              Label:
+              - "CRITICAL"
+              - "HIGH"
+              - "MEDIUM"
+      Targets:
+      - Arn: !GetAtt SolarLambdaSecurityHubSF.Arn
+        Id: "securityhub-sf-target"
+
+  # ========== CloudTrail ==========
+  SolarCloudTrail:
+    Type: "AWS::CloudTrail::Trail"
+    Properties:
+      TrailName: "solar_cloudtrail-s3"
+      S3BucketName: !Ref SolarS3CloudTrail
+      IncludeGlobalServiceEvents: true
+      IsMultiRegionTrail: true
+      EnableLogFileValidation: false
+      CloudWatchLogsLogGroupArn: !Sub "${SolarLogGroupCloudTrail}:*"
+      CloudWatchLogsRoleArn: !GetAtt SolarCloudTrailRole.Arn
+      KMSKeyId: !Ref SolarKMSKeyS3
+      AdvancedEventSelectors:
+      - Name: "Management Events"
+        FieldSelectors:
+        - Field: "eventCategory"
+          Equals:
+          - "Management"
+      - Name: "S3 Data Events"
+        FieldSelectors:
+        - Field: "resources.type"
+          Equals:
+          - "AWS::S3::Object"
+        - Field: "eventCategory"
+          Equals:
+          - "Data"
+      InsightSelectors:
+      - InsightType: "ApiCallRateInsight"
+        EventCategories:
+        - "Management"
+      - InsightType: "ApiErrorRateInsight"
+        EventCategories:
+        - "Management"
+      IsLogging: true
+
+  # ========== Log Groups ==========
+  SolarLogGroupCloudTrail:
+    Type: "AWS::Logs::LogGroup"
+    Properties:
+      LogGroupName: "solar-cloudtrail-log"
+      RetentionInDays: 14
+
+  SolarLogGroupWAFCloudFront:
+    Type: "AWS::Logs::LogGroup"
+    Properties:
+      LogGroupName: "/aws/waf/cloudfront"
+      RetentionInDays: 14
+
+  SolarLogGroupWAFRegional:
+    Type: "AWS::Logs::LogGroup"
+    Properties:
+      LogGroupName: "aws-waf-logs-solar-cwl-r"
+      RetentionInDays: 14
+
+  SolarLogGroupSecurityIncidentSF:
+    Type: "AWS::Logs::LogGroup"
+    Properties:
+      LogGroupName: "/aws/solar_sf_security-incident-Logs"
+      RetentionInDays: 14
+
+  SolarLogGroupIAMSOARSF:
+    Type: "AWS::Logs::LogGroup"
+    Properties:
+      LogGroupName: "/aws/solar_iam-soar_sf-Logs"
+      RetentionInDays: 14
+
+  SolarLogGroupRDSSnapshotSF:
+    Type: "AWS::Logs::LogGroup"
+    Properties:
+      LogGroupName: "/aws/solar_rds-snapshot-block_sf-Logs"
+      RetentionInDays: 14
+
+  SolarLogGroupFirehoseAPIGateway:
+    Type: "AWS::Logs::LogGroup"
+    Properties:
+      LogGroupName: "/aws/kinesisfirehose/solar-firehose-apigateway-s3"
+      RetentionInDays: 14
+
+  SolarLogGroupFirehoseWAFR:
+    Type: "AWS::Logs::LogGroup"
+    Properties:
+      LogGroupName: "/aws/kinesisfirehose/aws-waf-logs-solar-kfs-r"
+      RetentionInDays: 14
+
+  SolarLogGroupFirehoseWAFG:
+    Type: "AWS::Logs::LogGroup"
+    Properties:
+      LogGroupName: "/aws/kinesisfirehose/aws-waf-logs-solar-kfs-g"
+      RetentionInDays: 14
+
+  SolarLogGroupGateway:
+    Type: "AWS::Logs::LogGroup"
+    Properties:
+      LogGroupName: "solar-gateway-log"
+      RetentionInDays: 14
+
+  SolarLogGroupVPCFlow:
+    Type: "AWS::Logs::LogGroup"
+    Properties:
+      LogGroupName: "solar-vpcflow-log"
+      RetentionInDays: 14
+
+  # ========== Log Subscription Filters ==========
+  SolarLogSubscriptionWAFCloudFront:
+    Type: "AWS::Logs::SubscriptionFilter"
+    Properties:
+      LogGroupName: !Ref SolarLogGroupWAFCloudFront
+      FilterPattern: ""
+      DestinationArn: !GetAtt SolarLambdaWAFSF.Arn
+      FilterName: "waf-cloudfront-filter"
+
+  SolarLogSubscriptionWAFRegional:
+    Type: "AWS::Logs::SubscriptionFilter"
+    Properties:
+      LogGroupName: !Ref SolarLogGroupWAFRegional
+      FilterPattern: ""
+      DestinationArn: !GetAtt SolarLambdaWAFSF.Arn
+      FilterName: "waf-regional-filter"
+
+  SolarLogSubscriptionCloudTrail:
+    Type: "AWS::Logs::SubscriptionFilter"
+    Properties:
+      LogGroupName: !Ref SolarLogGroupCloudTrail
+      FilterPattern: ""
+      DestinationArn: !GetAtt SolarLambdaCloudTrailSF.Arn
+      FilterName: "cloudtrail-filter"
+
+  SolarLogSubscriptionGateway:
+    Type: "AWS::Logs::SubscriptionFilter"
+    Properties:
+      LogGroupName: !Ref SolarLogGroupGateway
+      FilterPattern: ""
+      DestinationArn: !GetAtt SolarKinesisFirehoseAPIGatewayS3.Arn
+      FilterName: "api filter"
+      RoleArn: !GetAtt SolarCloudWatchRole.Arn
+
+  # ========== Log Resource Policy ==========
+  SolarLogResourcePolicy:
+    Type: "AWS::Logs::ResourcePolicy"
+    Properties:
+      PolicyName: "AWSLogDeliveryWrite20150319"
+      PolicyDocument: !Sub |
+        {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "AWSLogDeliveryWrite1",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "delivery.logs.amazonaws.com"
+              },
+              "Action": [
+                "logs:CreateLogStream",
+                "logs:PutLogEvents"
+              ],
+              "Resource": "arn:aws:logs:$${AWS::Region}:$${AWS::AccountId}:log-group:${SolarLogGroupGateway}:log-stream:*",
+              "Condition": {
+                "StringEquals": {
+                  "aws:SourceAccount": "${AWS::AccountId}"
+                },
+                "ArnLike": {
+                  "aws:SourceArn": "arn:aws:logs:$${AWS::Region}:$${AWS::AccountId}:*"
+                }
+              }
+            },
+            {
+              "Sid": "AWSLogDeliveryWrite2", 
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "delivery.logs.amazonaws.com"
+              },
+              "Action": [
+                "logs:CreateLogStream",
+                "logs:PutLogEvents"
+              ],
+              "Resource": "arn:aws:logs:$${AWS::Region}:$${AWS::AccountId}:log-group:${SolarLogGroupWAFRegional}:log-stream:*",
+              "Condition": {
+                "StringEquals": {
+                  "aws:SourceAccount": "${AWS::AccountId}"
+                },
+                "ArnLike": {
+                  "aws:SourceArn": "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*"
+                }
+              }
+            },
+            {
+              "Sid": "AWSLogDeliveryWrite3",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "delivery.logs.amazonaws.com"
+              },
+              "Action": [
+                "logs:CreateLogStream",
+                "logs:PutLogEvents"
+              ],
+              "Resource": "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${SolarLogGroupRDSSnapshotSF}:log-stream:*",
+              "Condition": {
+                "StringEquals": {
+                  "aws:SourceAccount": "${AWS::AccountId}"
+                },
+                "ArnLike": {
+                  "aws:SourceArn": "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*"
+                }
+              }
+            },
+            {
+              "Sid": "AWSLogDeliveryWrite4",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "delivery.logs.amazonaws.com"
+              },
+              "Action": [
+                "logs:CreateLogStream",
+                "logs:PutLogEvents"
+              ],
+              "Resource": "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${SolarLogGroupIAMSOARSF}:log-stream:*",
+              "Condition": {
+                "StringEquals": {
+                  "aws:SourceAccount": "${AWS::AccountId}"
+                },
+                "ArnLike": {
+                  "aws:SourceArn": "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*"
+                }
+              }
+            }
+          ]
+        }
+
+  # ========== Lambda Permissions ==========
+  SolarLambdaToSlackPermissionSNS:
+    Type: "AWS::Lambda::Permission"
+    Properties:
+      FunctionName: !Ref SolarLambdaToSlack
+      Action: "lambda:InvokeFunction"
+      Principal: "sns.amazonaws.com"
+      SourceArn: !Ref SolarSIEMTopic
+
+  SolarLambdaToSlackPermissionCloudWatch:
+    Type: "AWS::Lambda::Permission"
+    Properties:
+      FunctionName: !Ref SolarLambdaToSlack
+      Action: "lambda:InvokeFunction"
+      Principal: "logs.amazonaws.com"
+      SourceArn: !Sub "${SolarLogGroupWAFCloudFront}:*"
+      SourceAccount: !Ref "AWS::AccountId"
+
+  SolarLambdaWAFSFPermissionCloudFront:
+    Type: "AWS::Lambda::Permission"
+    Properties:
+      FunctionName: !Ref SolarLambdaWAFSF
+      Action: "lambda:InvokeFunction"
+      Principal: "logs.amazonaws.com"
+      SourceArn: !Sub "${SolarLogGroupWAFCloudFront}:*"
+      SourceAccount: !Ref "AWS::AccountId"
+
+  SolarLambdaWAFSFPermissionRegional:
+    Type: "AWS::Lambda::Permission"
+    Properties:
+      FunctionName: !Ref SolarLambdaWAFSF
+      Action: "lambda:InvokeFunction"
+      Principal: "logs.amazonaws.com"
+      SourceArn: !Sub "${SolarLogGroupWAFRegional}:*"
+      SourceAccount: !Ref "AWS::AccountId"
+
+  SolarLambdaCloudTrailSFPermission:
+    Type: "AWS::Lambda::Permission"
+    Properties:
+      FunctionName: !Ref SolarLambdaCloudTrailSF
+      Action: "lambda:InvokeFunction"
+      Principal: "logs.amazonaws.com"
+      SourceArn: !Sub "${SolarLogGroupCloudTrail}:*"
+      SourceAccount: !Ref "AWS::AccountId"
+
+  SolarLambdaS3PublicBlockPermission:
+    Type: "AWS::Lambda::Permission"
+    Properties:
+      FunctionName: !Ref SolarLambdaS3PublicBlock
+      Action: "lambda:InvokeFunction"
+      Principal: "events.amazonaws.com"
+      SourceArn: !GetAtt SolarS3PublicEventRule.Arn
+
+  SolarLambdaToOpenSearchPermission:
+    Type: "AWS::Lambda::Permission"
+    Properties:
+      FunctionName: !Ref SolarLambdaToOpenSearch
+      Action: "lambda:InvokeFunction"
+      Principal: "sns.amazonaws.com"
+      SourceArn: !Ref SolarSIEMTopic
+
+  SolarLambdaSecurityHubSFPermission:
+    Type: "AWS::Lambda::Permission"
+    Properties:
+      FunctionName: !Ref SolarLambdaSecurityHubSF
+      Action: "lambda:InvokeFunction"
+      Principal: "events.amazonaws.com"
+      SourceArn: !GetAtt SolarSecurityHubEventRule.Arn
+
+  # ========== EventBridge Scheduler ==========
+  SolarScheduleLogsS3Export:
+    Type: "AWS::Scheduler::Schedule"
+    Properties:
+      Name: "solar-s3-opensearch-schedule"
+      Description: "Daily export of logs to S3 for OpenSearch"
+      ScheduleExpression: "rate(24 hours)"
+      FlexibleTimeWindow:
+        Mode: "OFF"
+      Target:
+        Arn: !GetAtt SolarLambdaLogsS3.Arn
+        RoleArn: !GetAtt SolarEventBridgeRole.Arn
+
+  # ========== VPC Flow Logs ==========
+  SolarVPCFlowLog:
+    Type: "AWS::EC2::FlowLog"
+    Properties:
+      ResourceType: "VPC"
+      ResourceId: !Ref VPCId
+      TrafficType: "ALL"
+      LogDestinationType: "cloud-watch-logs"
+      LogGroupName: !Ref SolarLogGroupVPCFlow
+      DeliverLogsPermissionArn: !GetAtt SolarCloudWatchRole.Arn
+      Tags:
+      - Key: "Name"
+        Value: "solar-vpc-flow-log"
+
+  # ========== Additional Lambda Functions for Complete Coverage ==========
+  SolarLambdaOpenSearchLogProcessor:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      FunctionName: "LogsToElasticsearch_solar-opensearch-domain"
+      Runtime: "nodejs18.x"
+      Handler: "index.handler"
+      Role: !GetAtt SolarOpenSearchRole.Arn
+      VpcConfig:
+        SecurityGroupIds:
+        - !Ref SolarSecurityGroup
+        SubnetIds: !Ref SubnetIds
+      Code:
+        ZipFile: |
+          const https = require('https');
+          const zlib = require('zlib');
+          const crypto = require('crypto');
+          
+          const endpoint = process.env.OPENSEARCH_ENDPOINT;
+          
+          exports.handler = async (event, context) => {
+              const payload = Buffer.from(event.awslogs.data, 'base64');
+              const parsed = JSON.parse(zlib.gunzipSync(payload).toString('utf8'));
+              
+              console.log('Decoded payload:', JSON.stringify(parsed, null, 2));
+              
+              const elasticsearchBulkData = parsed.logEvents.map(logEvent => {
+                  const timestamp = new Date(1 * logEvent.timestamp);
+                  const indexName = [
+                      'cwl',
+                      parsed.logGroup.toLowerCase().split('/').join('-'),
+                      timestamp.getUTCFullYear(),
+                      ('0' + (timestamp.getUTCMonth() + 1)).slice(-2),
+                      ('0' + timestamp.getUTCDate()).slice(-2)
+                  ].join('-');
+                  
+                  const action = { "index": {} };
+                  action.index._index = indexName;
+                  action.index._type = '_doc';
+                  action.index._id = logEvent.id;
+                  
+                  const source = {
+                      '@message': logEvent.message,
+                      '@timestamp': new Date(1 * logEvent.timestamp).toISOString(),
+                      '@id': logEvent.id,
+                      '@log_group': parsed.logGroup,
+                      '@log_stream': parsed.logStream
+                  };
+                  
+                  return [
+                      JSON.stringify(action),
+                      JSON.stringify(source)
+                  ].join('\n');
+              }).join('\n') + '\n';
+              
+              console.log('Bulk data prepared for OpenSearch');
+              return { statusCode: 200, body: 'Data processed for OpenSearch' };
+          };
+      Environment:
+        Variables:
+          OPENSEARCH_ENDPOINT: !Ref OpenSearchEndpoint
+      Timeout: 60
+
+  # ========== Additional Log Subscription Filters ==========
+  SolarLogSubscriptionVPCFlow:
+    Type: "AWS::Logs::SubscriptionFilter"
+    Properties:
+      LogGroupName: !Ref SolarLogGroupVPCFlow
+      FilterPattern: ""
+      DestinationArn: !GetAtt SolarLambdaOpenSearchLogProcessor.Arn
+      FilterName: "vpc-flow-opensearch-filter"
+
+  SolarLogSubscriptionCloudTrailOpenSearch:
+    Type: "AWS::Logs::SubscriptionFilter"
+    Properties:
+      LogGroupName: !Ref SolarLogGroupCloudTrail
+      FilterPattern: ""
+      DestinationArn: !GetAtt SolarLambdaOpenSearchLogProcessor.Arn
+      FilterName: "cloudtrail-opensearch-filter"
+
+  # ========== Lambda Permission for OpenSearch Log Processor ==========
+  SolarLambdaOpenSearchLogProcessorPermissionVPCFlow:
+    Type: "AWS::Lambda::Permission"
+    Properties:
+      FunctionName: !Ref SolarLambdaOpenSearchLogProcessor
+      Action: "lambda:InvokeFunction"
+      Principal: "logs.amazonaws.com"
+      SourceArn: !Sub "${SolarLogGroupVPCFlow}:*"
+      SourceAccount: !Ref "AWS::AccountId"
+
+  SolarLambdaOpenSearchLogProcessorPermissionCloudTrail:
+    Type: "AWS::Lambda::Permission"
+    Properties:
+      FunctionName: !Ref SolarLambdaOpenSearchLogProcessor
+      Action: "lambda:InvokeFunction"
+      Principal: "logs.amazonaws.com"
+      SourceArn: !Sub "${SolarLogGroupCloudTrail}:*"
+      SourceAccount: !Ref "AWS::AccountId"
+
+  SolarLambdaOpenSearchLogProcessorPermissionWAFCloudFront:
+    Type: "AWS::Lambda::Permission"
+    Properties:
+      FunctionName: !Ref SolarLambdaOpenSearchLogProcessor
+      Action: "lambda:InvokeFunction"
+      Principal: "logs.amazonaws.com"
+      SourceArn: !Sub "${SolarLogGroupWAFCloudFront}:*"
+      SourceAccount: !Ref "AWS::AccountId"
+
+  # ========== Lambda Layers ==========
+  SolarPythonRequestsLayer:
+    Type: "AWS::Lambda::LayerVersion"
+    Properties:
+      LayerName: "python_requests_layer"
+      Description: "Python requests library for Lambda functions"
+      Content:
+        S3Bucket: !Ref SolarS3CloudWatch
+        S3Key: "layers/python-requests-layer.zip"
+      CompatibleRuntimes:
+      - "python3.13"
+      - "python3.14"
+      CompatibleArchitectures:
+      - "x86_64"
+
+  # ========== CloudWatch Alarms ==========
+  SolarCloudWatchAlarmCriticalSecurityIncidents:
+    Type: "AWS::CloudWatch::Alarm"
+    Properties:
+      AlarmName: "Solar-Critical-Security-Incidents"
+      AlarmDescription: "Alarm for critical security incidents"
+      MetricName: "IncidentCount"
+      Namespace: "Security/Incidents"
+      Statistic: "Sum"
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: "GreaterThanOrEqualToThreshold"
+      Dimensions:
+      - Name: "Severity"
+        Value: "CRITICAL"
+      AlarmActions:
+      - !Ref SolarSIEMTopic
+      TreatMissingData: "notBreaching"
+
+  SolarCloudWatchAlarmHighSecurityIncidents:
+    Type: "AWS::CloudWatch::Alarm"
+    Properties:
+      AlarmName: "Solar-High-Security-Incidents"
+      AlarmDescription: "Alarm for high security incidents"
+      MetricName: "IncidentCount"
+      Namespace: "Security/Incidents"
+      Statistic: "Sum"
+      Period: 600
+      EvaluationPeriods: 1
+      Threshold: 3
+      ComparisonOperator: "GreaterThanThreshold"
+      Dimensions:
+      - Name: "Severity"
+        Value: "HIGH"
+      AlarmActions:
+      - !Ref SolarSIEMTopic
+      TreatMissingData: "notBreaching"
+
+  # ========== EventBridge Custom Bus ==========
+  SolarCustomEventBus:
+    Type: "AWS::Events::EventBus"
+    Properties:
+      Name: "solar-security-event-bus"
+      Description: "Custom event bus for Solar security events"
+
+  SolarCustomEventRule:
+    Type: "AWS::Events::Rule"
+    Properties:
+      Name: "solar-custom-security-events"
+      Description: "Custom security events processing"
+      EventBusName: !Ref SolarCustomEventBus
+      EventPattern:
+        source:
+        - "solar.security"
+        detail-type:
+        - "Security Incident"
+        - "Threat Detection"
+      Targets:
+      - Arn: !GetAtt SolarSecurityIncidentStateMachine.Arn
+        Id: "custom-security-target"
+        RoleArn: !GetAtt SolarEventBridgeRole.Arn
+
+Outputs:
+  # ========== S3 Bucket Outputs ==========
+  SolarS3PublicBucket:
+    Description: "Solar S3 Public Bucket Name"
+    Value: !Ref SolarS3Public
+    Export:
+      Name: !Sub "${AWS::StackName}-S3-Public-Bucket"
+
+  SolarS3CloudTrailBucket:
+    Description: "Solar S3 CloudTrail Bucket Name"
+    Value: !Ref SolarS3CloudTrail
+    Export:
+      Name: !Sub "${AWS::StackName}-S3-CloudTrail-Bucket"
+
+  SolarS3SecurityForensicsBucket:
+    Description: "Solar S3 Security Forensics Bucket Name"
+    Value: !Ref SolarS3SecurityForensics
+    Export:
+      Name: !Sub "${AWS::StackName}-S3-Security-Forensics-Bucket"
+
+  # ========== Step Functions Outputs ==========
+  SecurityIncidentStateMachine:
+    Description: "Security Incident State Machine ARN"
+    Value: !Ref SolarSecurityIncidentStateMachine
+    Export:
+      Name: !Sub "${AWS::StackName}-Security-Incident-StateMachine"
+
+  IAMSOARStateMachine:
+    Description: "IAM SOAR State Machine ARN"
+    Value: !Ref SolarIAMSOARStateMachine
+    Export:
+      Name: !Sub "${AWS::StackName}-IAM-SOAR-StateMachine"
+
+  RDSSnapshotBlockStateMachine:
+    Description: "RDS Snapshot Block State Machine ARN"
+    Value: !Ref SolarRDSSnapshotBlockStateMachine
+    Export:
+      Name: !Sub "${AWS::StackName}-RDS-Snapshot-Block-StateMachine"
+
+  S3PublicBlockStateMachine:
+    Description: "S3 Public Block State Machine ARN"
+    Value: !Ref SolarS3PublicBlockStateMachine
+    Export:
+      Name: !Sub "${AWS::StackName}-S3-Public-Block-StateMachine"
+
+  # ========== Lambda Functions Outputs ==========
+  LambdaToSlackFunction:
+    Description: "Lambda to Slack Function ARN"
+    Value: !GetAtt SolarLambdaToSlack.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-Lambda-ToSlack"
+
+  LambdaSecurityIncidentSlackFunction:
+    Description: "Lambda Security Incident Slack Function ARN"
+    Value: !GetAtt SolarLambdaSecurityIncidentSlack.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-Lambda-SecurityIncident-Slack"
+
+  LambdaWAFSFFunction:
+    Description: "Lambda WAF Step Function Trigger ARN"
+    Value: !GetAtt SolarLambdaWAFSF.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-Lambda-WAF-SF"
+
+  # ========== WAF Outputs ==========
+  WAFCloudFrontACL:
+    Description: "WAF CloudFront ACL ARN"
+    Value: !GetAtt SolarWAFCloudFront.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-WAF-CloudFront"
+
+  WAFRegionalACL:
+    Description: "WAF Regional ACL ARN"
+    Value: !GetAtt SolarWAFRegional.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-WAF-Regional"
+
+  # ========== CloudFront Outputs ==========
+  CloudFrontDistribution:
+    Description: "CloudFront Distribution ID"
+    Value: !Ref SolarCloudFrontDistribution
+    Export:
+      Name: !Sub "${AWS::StackName}-CloudFront-Distribution"
+
+  CloudFrontDistributionDomainName:
+    Description: "CloudFront Distribution Domain Name"
+    Value: !GetAtt SolarCloudFrontDistribution.DomainName
+    Export:
+      Name: !Sub "${AWS::StackName}-CloudFront-Domain"
+
+  # ========== SNS Topic Outputs ==========
+  SIEMTopic:
+    Description: "Solar SIEM SNS Topic ARN"
+    Value: !Ref SolarSIEMTopic
+    Export:
+      Name: !Sub "${AWS::StackName}-SIEM-Topic"
+
+  # ========== CloudTrail Outputs ==========
+  CloudTrail:
+    Description: "Solar CloudTrail ARN"
+    Value: !GetAtt SolarCloudTrail.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-CloudTrail"
+
+  # ========== Kinesis Firehose Outputs ==========
+  KinesisFirehoseAPIGateway:
+    Description: "Kinesis Firehose API Gateway Stream ARN"
+    Value: !GetAtt SolarKinesisFirehoseAPIGatewayS3.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-Firehose-APIGateway"
+
+  KinesisFirehoseWAFRegional:
+    Description: "Kinesis Firehose WAF Regional Stream ARN"
+    Value: !GetAtt SolarKinesisFirehoseWAFR.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-Firehose-WAF-Regional"
+
+  KinesisFirehoseWAFGlobal:
+    Description: "Kinesis Firehose WAF Global Stream ARN"
+    Value: !GetAtt SolarKinesisFirehoseWAFG.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-Firehose-WAF-Global"
+
+  # ========== Custom Event Bus Outputs ==========
+  CustomEventBus:
+    Description: "Solar Custom Event Bus ARN"
+    Value: !GetAtt SolarCustomEventBus.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-Custom-Event-Bus"
+
+  # ========== Deployment Information ==========
+  DeploymentInfo:
+    Description: "Solar SIEM/SOAR Infrastructure Deployment Information"
+    Value: !Sub |
+      Solar SIEM/SOAR Infrastructure Successfully Deployed
+      
+      Key Components:
+      - Security Incident Response State Machine: ${SolarSecurityIncidentStateMachine}
+      - IAM SOAR Automation: ${SolarIAMSOARStateMachine}
+      - WAF Protection: CloudFront (${SolarWAFCloudFront}) & Regional (${SolarWAFRegional})
+      - CloudTrail Logging: ${SolarCloudTrail}
+      - Slack Integration: ${SolarLambdaToSlack}
+      - S3 Security Buckets: Public (${SolarS3Public}), Forensics (${SolarS3SecurityForensics})
+      
+      Monitoring:
+      - CloudWatch Alarms for Critical/High incidents
+      - Real-time log processing to OpenSearch
+      - Automated threat response workflows
+      
+      Next Steps:
+      1. Configure OpenSearch domain if not already done
+      2. Test Slack webhook integration
+      3. Review and customize security policies
+      4. Set up additional monitoring dashboards
+    Export:
+      Name: !Sub "${AWS::StackName}-Deployment-Info"
+  
+
+# ==========================================
+# DEPLOYMENT COMMANDS
+# ==========================================
+# 아래 명령어들을 사용하여 이 템플릿을 배포하세요:
+
+# 1. 템플릿 저장
+# solar-siem-complete.yaml로 저장
+
+# 2. 템플릿 검증
+# aws cloudformation validate-template \
+#   --template-body file://solar-siem-complete.yaml
+
+# 3. 스택 배포
+# aws cloudformation create-stack \
+#   --stack-name solar-siem-infrastructure \
+#   --template-body file://solar-siem-complete.yaml \
+#   --parameters \
+#     ParameterKey=SlackWebhookURL,ParameterValue="your-webhook-url" \
+#     ParameterKey=OpenSearchEndpoint,ParameterValue="your-opensearch-endpoint" \
+#     ParameterKey=VPCId,ParameterValue="your-vpc-id" \
+#     ParameterKey=DefaultVPCId,ParameterValue="your-default-vpc-id" \
+#     ParameterKey=SubnetIds,ParameterValue="subnet-1,subnet-2" \
+#   --capabilities CAPABILITY_NAMED_IAM \
+#   --enable-termination-protection
+
+# 4. 배포 상태 확인
+# aws cloudformation describe-stacks \
+#   --stack-name solar-siem-infrastructure
+
+# ==========================================
+# ADDITIONAL USEFUL COMMANDS
+# ==========================================
+
+# 스택 업데이트 (변경사항 적용시)
+# aws cloudformation update-stack \
+#   --stack-name solar-siem-infrastructure \
+#   --template-body file://solar-siem-complete.yaml \
+#   --parameters \
+#     ParameterKey=SlackWebhookURL,ParameterValue="your-webhook-url" \
+#     ParameterKey=OpenSearchEndpoint,ParameterValue="your-opensearch-endpoint" \
+#     ParameterKey=VPCId,ParameterValue="your-vpc-id" \
+#     ParameterKey=DefaultVPCId,ParameterValue="your-default-vpc-id" \
+#     ParameterKey=SubnetIds,ParameterValue="subnet-1,subnet-2" \
+#   --capabilities CAPABILITY_NAMED_IAM
+
+# 스택 삭제 (주의: 모든 리소스가 삭제됩니다!)
+# aws cloudformation delete-stack \
+#   --stack-name solar-siem-infrastructure
+
+# 스택 이벤트 모니터링
+# aws cloudformation describe-stack-events \
+#   --stack-name solar-siem-infrastructure
+
+# 스택 리소스 목록 확인
+# aws cloudformation list-stack-resources \
+#   --stack-name solar-siem-infrastructure
+
+# 변경 세트 생성 (배포 전 변경사항 미리보기)
+# aws cloudformation create-change-set \
+#   --stack-name solar-siem-infrastructure \
+#   --template-body file://solar-siem-complete.yaml \
+#   --change-set-name preview-changes \
+#   --capabilities CAPABILITY_NAMED_IAM
+
+# 변경 세트 확인
+# aws cloudformation describe-change-set \
+#   --stack-name solar-siem-infrastructure \
+#   --change-set-name preview-changes
+
+# ==========================================
+# PARAMETER CUSTOMIZATION GUIDE
+# ==========================================
+
+# SlackWebhookURL: 
+#   - Slack 워크스페이스의 Incoming Webhooks URL
+#   - 예: "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX"
+
+# OpenSearchEndpoint:
+#   - OpenSearch 도메인의 엔드포인트 URL
+#   - 예: "https://vpc-your-domain-xxxxx.us-east-1.es.amazonaws.com"
+
+# VPCId:
+#   - 메인 VPC ID (보안 그룹과 리소스가 생성될 VPC)
+#   - 예: "vpc-0123456789abcdef0"
+
+# DefaultVPCId:
+#   - 기본 VPC ID (일부 보안 그룹용)
+#   - 예: "vpc-abcdef0123456789"
+
+# SubnetIds:
+#   - Lambda VPC 설정용 서브넷 ID들 (쉼표로 구분)
+#   - 예: "subnet-0123456789abcdef0,subnet-fedcba9876543210"
+
+# ==========================================
+# TROUBLESHOOTING
+# ==========================================
+
+# 배포 실패시 롤백 비활성화 (디버깅용)
+# --disable-rollback 옵션 추가
+
+# 특정 리소스 건너뛰기
+# --retain-except-on-create 옵션 사용
+
+# 상세 로그 확인
+# --debug 옵션 추가
+
+# ==========================================
+# POST-DEPLOYMENT VERIFICATION
+# ==========================================
+
+# 1. Lambda 함수들 확인
+# aws lambda list-functions --query 'Functions[?starts_with(FunctionName, `solar_`)].FunctionName'
+
+# 2. Step Functions 확인
+# aws stepfunctions list-state-machines --query 'stateMachines[?starts_with(name, `solar_`)].name'
+
+# 3. CloudWatch 로그 그룹 확인
+# aws logs describe-log-groups --log-group-name-prefix "/aws/lambda/solar"
+
+# 4. EventBridge 룰 확인
+# aws events list-rules --name-prefix "solar"
+
+# 5. WAF 웹 ACL 확인
+# aws wafv2 list-web-acls --scope CLOUDFRONT --region us-east-1
+# aws wafv2 list-web-acls --scope REGIONAL --region us-east-1
+
+# ==========================================
+# END OF TEMPLATE
+# Solar SIEM/SOAR Infrastructure Template v1.0
+# Created by Solar Security Team
+# ==========================================
