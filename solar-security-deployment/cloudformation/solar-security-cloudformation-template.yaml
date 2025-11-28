@@ -10,27 +10,27 @@ Parameters:
   SlackWebhookURL:
     Type: String
     Description: "Slack Webhook URL for notifications"
-    Default: "https://hooks.slack.com/services/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"
+    Default: "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK_URL"
   
   OpenSearchEndpoint:
     Type: String
     Description: "OpenSearch domain endpoint"
-    Default: "https://vpc-solar-opensearch-domain-v4vshx2o7gtk4gjnjihgwf643u.us-east-1.es.amazonaws.com"
+    Default: "https://vpc-your-opensearch-domain.us-east-1.es.amazonaws.com"
 
   VPCId:
     Type: String
     Description: "VPC ID for security groups"
-    Default: "vpc-0cdf149186ad14f01"
+    Default: "vpc-0123456789abcdef0"
 
   DefaultVPCId:
     Type: String
     Description: "Default VPC ID"
-    Default: "vpc-09931cc7b77d3c399"
+    Default: "vpc-abcdef0123456789"
 
   SubnetIds:
     Type: CommaDelimitedList
     Description: "Subnet IDs for Lambda VPC configuration"
-    Default: "subnet-0d719b44d32236166,subnet-0491679de33810024"
+    Default: "subnet-0123456789abcdef0,subnet-fedcba9876543210"
 
 Resources:
   # ========== KMS Keys ==========
@@ -64,7 +64,7 @@ Resources:
   SolarS3Public:
     Type: "AWS::S3::Bucket"
     Properties:
-      BucketName: "solar-s3-public"
+      BucketName: "solar-s3-public-${AWS::AccountId}-${AWS::Region}"
       PublicAccessBlockConfiguration:
         RestrictPublicBuckets: true
         IgnorePublicAcls: true
@@ -81,7 +81,7 @@ Resources:
   SolarS3EcommerceImage:
     Type: "AWS::S3::Bucket"
     Properties:
-      BucketName: "solar-s3-ecommerce-image"
+      BucketName: "solar-s3-ecommerce-image-${AWS::AccountId}-${AWS::Region}"
       PublicAccessBlockConfiguration:
         RestrictPublicBuckets: true
         IgnorePublicAcls: true
@@ -93,7 +93,7 @@ Resources:
         CorsRules:
         - AllowedHeaders: ["*"]
           AllowedMethods: ["GET"]
-          AllowedOrigins: ["https://kdt-solar-ecommerce.com/"]
+          AllowedOrigins: ["https://example.com/"]
       BucketEncryption:
         ServerSideEncryptionConfiguration:
         - ServerSideEncryptionByDefault:
@@ -105,7 +105,7 @@ Resources:
   SolarS3CloudTrail:
     Type: "AWS::S3::Bucket"
     Properties:
-      BucketName: "solar-s3-cloudtrail"
+      BucketName: "solar-s3-cloudtrail-${AWS::AccountId}-${AWS::Region}"
       PublicAccessBlockConfiguration:
         RestrictPublicBuckets: true
         IgnorePublicAcls: true
@@ -122,7 +122,7 @@ Resources:
   SolarS3Config:
     Type: "AWS::S3::Bucket"
     Properties:
-      BucketName: "solar-s3-config"
+      BucketName: "solar-s3-config-${AWS::AccountId}-${AWS::Region}"
       PublicAccessBlockConfiguration:
         RestrictPublicBuckets: true
         IgnorePublicAcls: true
@@ -141,7 +141,7 @@ Resources:
   SolarS3OpenSearch:
     Type: "AWS::S3::Bucket"
     Properties:
-      BucketName: "solar-s3-opensearch"
+      BucketName: "solar-s3-opensearch-${AWS::AccountId}-${AWS::Region}"
       PublicAccessBlockConfiguration:
         RestrictPublicBuckets: true
         IgnorePublicAcls: true
@@ -168,7 +168,7 @@ Resources:
   SolarS3SecurityForensics:
     Type: "AWS::S3::Bucket"
     Properties:
-      BucketName: "solar-s3-security-forensics"
+      BucketName: "solar-s3-security-forensics-${AWS::AccountId}-${AWS::Region}"
       PublicAccessBlockConfiguration:
         RestrictPublicBuckets: true
         IgnorePublicAcls: true
@@ -187,7 +187,7 @@ Resources:
   SolarS3CloudWatch:
     Type: "AWS::S3::Bucket"
     Properties:
-      BucketName: "solar-s3-cloudwatch"
+      BucketName: "solar-s3-cloudwatch-${AWS::AccountId}-${AWS::Region}"
       PublicAccessBlockConfiguration:
         RestrictPublicBuckets: true
         IgnorePublicAcls: true
@@ -205,7 +205,7 @@ Resources:
   AWSWafLogsS3Solar:
     Type: "AWS::S3::Bucket"
     Properties:
-      BucketName: "aws-waf-logs-s3-solar"
+      BucketName: "aws-waf-logs-s3-solar-${AWS::AccountId}-${AWS::Region}"
       PublicAccessBlockConfiguration:
         RestrictPublicBuckets: true
         IgnorePublicAcls: true
@@ -223,7 +223,7 @@ Resources:
   SolarTestS3:
     Type: "AWS::S3::Bucket"
     Properties:
-      BucketName: "solar-test-s3"
+      BucketName: "solar-test-s3-${AWS::AccountId}-${AWS::Region}"
       PublicAccessBlockConfiguration:
         RestrictPublicBuckets: true
         IgnorePublicAcls: true
@@ -716,7 +716,7 @@ Resources:
       - IpProtocol: "tcp"
         FromPort: 22
         ToPort: 22
-        CidrIp: "218.154.67.169/32"
+        CidrIp: "203.0.113.1/32"
       - IpProtocol: "tcp"
         FromPort: 22
         ToPort: 22
@@ -725,28 +725,28 @@ Resources:
       - IpProtocol: "-1"
         FromPort: -1
         ToPort: -1
-        CidrIp: "203.0.113.100/32"
+        CidrIp: "203.0.113.1/32"
         Description: "CRITICAL: Blocked for incident CRIT-2024-001"
       - IpProtocol: "-1"
         FromPort: -1
         ToPort: -1
-        CidrIp: "198.51.100.10/32"
+        CidrIp: "203.0.113.1/32"
         Description: "CRITICAL_PRODUCTION: Blocked for incident EMERGENCY-TEST"
       SecurityGroupEgress:
       - IpProtocol: "-1"
         FromPort: -1
         ToPort: -1
-        CidrIp: "218.154.67.169/32"
+        CidrIp: "203.0.113.1/32"
         Description: "BLOCKED: MEDIUM incident cloudtrail-39328019 - malicious IP"
       - IpProtocol: "-1"
         FromPort: -1
         ToPort: -1
-        CidrIp: "183.91.222.126/32"
+        CidrIp: "203.0.113.1/32"
         Description: "BLOCKED: MEDIUM incident cloudtrail-39328019 - malicious IP"
       - IpProtocol: "-1"
         FromPort: -1
         ToPort: -1
-        CidrIp: "175.198.96.216/32"
+        CidrIp: "203.0.113.1/32"
         Description: "BLOCKED: MEDIUM incident cloudtrail-39328022 - malicious IP"
 
   SolarLoadBalancingVPCLinkGroup:
@@ -2813,10 +2813,7 @@ Resources:
           userIdentity:
             userName:
             - anything-but:
-              - "SOLAR_KHD"
-              - "SOLAR_KNH"
-              - "SOLAR_PSM"
-              - "SOLAR_LYJ"
+              - "ADMIN"
       Targets:
       - Arn: !GetAtt SolarIAMSOARStateMachine.Arn
         Id: "iam-soar-target"
@@ -3719,4 +3716,5 @@ Outputs:
 # END OF TEMPLATE
 # Solar SIEM/SOAR Infrastructure Template v1.0
 # Created by Solar Security Team
+
 # ==========================================
