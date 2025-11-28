@@ -1,0 +1,22 @@
+[
+  {
+    "ParameterKey": "SlackWebhookURL",
+    "ParameterValue": "https://hooks.slack.com/services/YOUR/STAGING/WEBHOOK"
+  },
+  {
+    "ParameterKey": "OpenSearchEndpoint",
+    "ParameterValue": "https://vpc-solar-opensearch-staging-xxxxx.us-east-1.es.amazonaws.com"
+  },
+  {
+    "ParameterKey": "VPCId",
+    "ParameterValue": "vpc-staging123456789"
+  },
+  {
+    "ParameterKey": "DefaultVPCId",
+    "ParameterValue": "vpc-default123456789"
+  },
+  {
+    "ParameterKey": "SubnetIds",
+    "ParameterValue": "subnet-staging1,subnet-staging2"
+  }
+]
