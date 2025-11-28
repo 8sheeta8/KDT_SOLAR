@@ -1,0 +1,593 @@
+name: 🚀 Deploy Solar SIEM/SOAR Infrastructure
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'cloudformation/**'
+      - '.github/workflows/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'cloudformation/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: '배포할 환경을 선택하세요'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging  
+          - prod
+      force_deploy:
+        description: '변경사항이 없어도 강제 배포'
+        required: false
+        default: false
+        type: boolean
+      skip_validation:
+        description: '검증 단계 건너뛰기 (권장하지 않음)'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  AWS_REGION: us-east-1
+  STACK_NAME_PREFIX: solar-siem
+  TEMPLATE_PATH: cloudformation/solar-siem-complete.yaml
+
+jobs:
+  # 🔍 변경사항 감지
+  detect-changes:
+    name: 🔍 Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      infrastructure-changed: ${{ steps.changes.outputs.infrastructure }}
+      should-deploy-dev: ${{ steps.should-deploy.outputs.dev }}
+      should-deploy-staging: ${{ steps.should-deploy.outputs.staging }}
+      should-deploy-prod: ${{ steps.should-deploy.outputs.prod }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Detect file changes
+      uses: dorny/paths-filter@v2
+      id: changes
+      with:
+        filters: |
+          infrastructure:
+            - 'cloudformation/**'
+            - '.github/workflows/deploy.yml'
+
+    - name: Determine deployment targets
+      id: should-deploy
+      run: |
+        if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          case "${{ github.event.inputs.environment }}" in
+            "dev") echo "dev=true" >> $GITHUB_OUTPUT ;;
+            "staging") echo "staging=true" >> $GITHUB_OUTPUT ;;
+            "prod") echo "prod=true" >> $GITHUB_OUTPUT ;;
+          esac
+        elif [[ "${{ github.ref }}" == "refs/heads/develop" && "${{ github.event_name }}" == "push" ]]; then
+          echo "dev=true" >> $GITHUB_OUTPUT
+        elif [[ "${{ github.ref }}" == "refs/heads/main" && "${{ github.event_name }}" == "push" ]]; then
+          echo "staging=true" >> $GITHUB_OUTPUT
+        fi
+
+  # ✅ 검증 작업
+  validate:
+    name: ✅ Validate Infrastructure
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.infrastructure-changed == 'true' || github.event.inputs.force_deploy == 'true'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials (for validation)
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Setup Ruby (for cfn-nag)
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '3.0'
+
+    - name: Install validation tools
+      run: |
+        pip install cfn-lint
+        gem install cfn-nag
+
+    - name: Validate CloudFormation syntax
+      run: |
+        aws cloudformation validate-template \
+          --template-body file://${{ env.TEMPLATE_PATH }}
+
+    - name: Run cfn-lint
+      run: |
+        cfn-lint ${{ env.TEMPLATE_PATH }} \
+          --info \
+          --format json > cfn-lint-results.json || true
+        
+        # cfn-lint 결과 출력
+        if [[ -s cfn-lint-results.json ]]; then
+          echo "::warning::CFN-Lint found issues:"
+          cat cfn-lint-results.json | jq -r '.[] | "Level: \(.Level), Rule: \(.Rule.Id), Message: \(.Message)"'
+        fi
+
+    - name: Security scan with cfn-nag
+      run: |
+        cfn_nag_scan --input-path cloudformation/ \
+          --output-format json > cfn-nag-results.json || true
+        
+        # cfn-nag 결과 출력
+        if [[ -s cfn-nag-results.json ]]; then
+          echo "::warning::CFN-Nag found security issues:"
+          cat cfn-nag-results.json
+        fi
+
+    - name: Upload validation results
+      uses: actions/upload-artifact@v3
+      with:
+        name: validation-results
+        path: |
+          cfn-lint-results.json
+          cfn-nag-results.json
+
+  # 🧪 개발 환경 배포
+  deploy-dev:
+    name: 🧪 Deploy to Development
+    runs-on: ubuntu-latest
+    needs: [detect-changes, validate]
+    if: |
+      (needs.detect-changes.outputs.should-deploy-dev == 'true' || github.event.inputs.force_deploy == 'true') &&
+      (github.event.inputs.skip_validation == 'true' || needs.validate.result == 'success')
+    environment: development
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Check current AWS identity
+      run: |
+        echo "Current AWS identity:"
+        aws sts get-caller-identity
+
+    - name: Deploy CloudFormation stack
+      id: deploy
+      run: |
+        STACK_NAME="${{ env.STACK_NAME_PREFIX }}-dev"
+        PARAM_FILE="cloudformation/parameters/dev.json"
+        
+        echo "Deploying stack: $STACK_NAME"
+        
+        # 스택 존재 여부 확인
+        if aws cloudformation describe-stacks --stack-name $STACK_NAME 2>/dev/null; then
+          echo "Stack exists, updating..."
+          OPERATION="update"
+          
+          aws cloudformation update-stack \
+            --stack-name $STACK_NAME \
+            --template-body file://${{ env.TEMPLATE_PATH }} \
+            --parameters file://$PARAM_FILE \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --tags \
+              Key=Environment,Value=dev \
+              Key=Project,Value=SolarSIEM \
+              Key=ManagedBy,Value=GitHubActions \
+              Key=Repository,Value=${{ github.repository }} \
+              Key=Commit,Value=${{ github.sha }} \
+              Key=Branch,Value=${{ github.ref_name }}
+        else
+          echo "Stack does not exist, creating..."
+          OPERATION="create"
+          
+          aws cloudformation create-stack \
+            --stack-name $STACK_NAME \
+            --template-body file://${{ env.TEMPLATE_PATH }} \
+            --parameters file://$PARAM_FILE \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --on-failure ROLLBACK \
+            --tags \
+              Key=Environment,Value=dev \
+              Key=Project,Value=SolarSIEM \
+              Key=ManagedBy,Value=GitHubActions \
+              Key=Repository,Value=${{ github.repository }} \
+              Key=Commit,Value=${{ github.sha }} \
+              Key=Branch,Value=${{ github.ref_name }}
+        fi
+        
+        echo "operation=$OPERATION" >> $GITHUB_OUTPUT
+
+    - name: Wait for deployment completion
+      run: |
+        STACK_NAME="${{ env.STACK_NAME_PREFIX }}-dev"
+        
+        if [[ "${{ steps.deploy.outputs.operation }}" == "create" ]]; then
+          echo "Waiting for stack creation to complete..."
+          aws cloudformation wait stack-create-complete \
+            --stack-name $STACK_NAME \
+            --max-attempts 60 \
+            --delay 30
+        else
+          echo "Waiting for stack update to complete..."
+          aws cloudformation wait stack-update-complete \
+            --stack-name $STACK_NAME \
+            --max-attempts 60 \
+            --delay 30
+        fi
+
+    - name: Get stack outputs and status
+      id: stack-info
+      run: |
+        STACK_NAME="${{ env.STACK_NAME_PREFIX }}-dev"
+        
+        echo "=== Stack Status ==="
+        STACK_STATUS=$(aws cloudformation describe-stacks \
+          --stack-name $STACK_NAME \
+          --query 'Stacks[0].StackStatus' \
+          --output text)
+        echo "Status: $STACK_STATUS"
+        
+        echo "=== Stack Outputs ==="
+        aws cloudformation describe-stacks \
+          --stack-name $STACK_NAME \
+          --query 'Stacks[0].Outputs[*].[OutputKey,OutputValue,Description]' \
+          --output table
+        
+        echo "stack-status=$STACK_STATUS" >> $GITHUB_OUTPUT
+
+    - name: Create deployment summary
+      run: |
+        cat >> $GITHUB_STEP_SUMMARY << 'EOF'
+        ## 🧪 Development Deployment Summary
+        
+        - **Environment**: Development
+        - **Stack Name**: ${{ env.STACK_NAME_PREFIX }}-dev
+        - **Operation**: ${{ steps.deploy.outputs.operation }}
+        - **Status**: ${{ steps.stack-info.outputs.stack-status }}
+        - **Region**: ${{ env.AWS_REGION }}
+        - **Commit**: ${{ github.sha }}
+        - **Branch**: ${{ github.ref_name }}
+        
+        ### 📊 Key Outputs
+        - Security Incident State Machine deployed
+        - IAM SOAR automation configured  
+        - WAF protection enabled
+        - Slack notifications configured
+        EOF
+
+  # 🎭 스테이징 환경 배포
+  deploy-staging:
+    name: 🎭 Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [detect-changes, validate, deploy-dev]
+    if: |
+      (needs.detect-changes.outputs.should-deploy-staging == 'true' || github.event.inputs.force_deploy == 'true') &&
+      (needs.deploy-dev.result == 'success' || needs.deploy-dev.result == 'skipped')
+    environment: staging
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_STAGING }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_STAGING }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Create change set for staging
+      id: changeset
+      run: |
+        STACK_NAME="${{ env.STACK_NAME_PREFIX }}-staging"
+        CHANGE_SET_NAME="changeset-$(date +%Y%m%d-%H%M%S)"
+        PARAM_FILE="cloudformation/parameters/staging.json"
+        
+        echo "Creating change set: $CHANGE_SET_NAME"
+        
+        # Change Set 생성
+        aws cloudformation create-change-set \
+          --stack-name $STACK_NAME \
+          --template-body file://${{ env.TEMPLATE_PATH }} \
+          --parameters file://$PARAM_FILE \
+          --capabilities CAPABILITY_NAMED_IAM \
+          --change-set-name $CHANGE_SET_NAME \
+          --tags \
+            Key=Environment,Value=staging \
+            Key=Project,Value=SolarSIEM \
+            Key=ManagedBy,Value=GitHubActions \
+            Key=Repository,Value=${{ github.repository }} \
+            Key=Commit,Value=${{ github.sha }} || true
+        
+        echo "changeset-name=$CHANGE_SET_NAME" >> $GITHUB_OUTPUT
+
+    - name: Wait for change set creation
+      run: |
+        STACK_NAME="${{ env.STACK_NAME_PREFIX }}-staging"
+        CHANGE_SET_NAME="${{ steps.changeset.outputs.changeset-name }}"
+        
+        echo "Waiting for change set creation..."
+        aws cloudformation wait change-set-create-complete \
+          --stack-name $STACK_NAME \
+          --change-set-name $CHANGE_SET_NAME
+
+    - name: Review changes
+      run: |
+        STACK_NAME="${{ env.STACK_NAME_PREFIX }}-staging"
+        CHANGE_SET_NAME="${{ steps.changeset.outputs.changeset-name }}"
+        
+        echo "=== Changes to be applied ==="
+        aws cloudformation describe-change-set \
+          --stack-name $STACK_NAME \
+          --change-set-name $CHANGE_SET_NAME \
+          --query 'Changes[*].[Action,ResourceChange.LogicalResourceId,ResourceChange.ResourceType,ResourceChange.Replacement]' \
+          --output table
+
+    - name: Execute change set
+      run: |
+        STACK_NAME="${{ env.STACK_NAME_PREFIX }}-staging"
+        CHANGE_SET_NAME="${{ steps.changeset.outputs.changeset-name }}"
+        
+        echo "Executing change set..."
+        aws cloudformation execute-change-set \
+          --stack-name $STACK_NAME \
+          --change-set-name $CHANGE_SET_NAME
+
+    - name: Wait for deployment completion
+      run: |
+        STACK_NAME="${{ env.STACK_NAME_PREFIX }}-staging"
+        
+        echo "Waiting for stack update to complete..."
+        aws cloudformation wait stack-update-complete \
+          --stack-name $STACK_NAME \
+          --max-attempts 60 \
+          --delay 30
+
+  # 🏭 프로덕션 환경 배포
+  deploy-prod:
+    name: 🏭 Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [detect-changes, validate, deploy-staging]
+    if: |
+      (needs.detect-changes.outputs.should-deploy-prod == 'true' || github.event.inputs.force_deploy == 'true') &&
+      (needs.deploy-staging.result == 'success' || needs.deploy-staging.result == 'skipped')
+    environment: production
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: 🚨 Production deployment confirmation
+      run: |
+        echo "🚨 PRODUCTION DEPLOYMENT 🚨"
+        echo "This deployment will affect the production environment."
+        echo "Please ensure all approvals are in place."
+        echo ""
+        echo "Stack: ${{ env.STACK_NAME_PREFIX }}-prod"
+        echo "Region: ${{ env.AWS_REGION }}"
+        echo "Commit: ${{ github.sha }}"
+        echo "Actor: ${{ github.actor }}"
+
+    - name: Create backup of current stack
+      run: |
+        STACK_NAME="${{ env.STACK_NAME_PREFIX }}-prod"
+        BACKUP_NAME="${STACK_NAME}-backup-$(date +%Y%m%d-%H%M%S)"
+        
+        if aws cloudformation describe-stacks --stack-name $STACK_NAME 2>/dev/null; then
+          echo "Creating backup of current template..."
+          aws cloudformation get-template \
+            --stack-name $STACK_NAME \
+            --template-stage Processed \
+            > ${BACKUP_NAME}-template.json
+          
+          aws cloudformation describe-stacks \
+            --stack-name $STACK_NAME \
+            > ${BACKUP_NAME}-parameters.json
+          
+          echo "Backup created: $BACKUP_NAME"
+        fi
+
+    - name: Deploy with enhanced monitoring
+      run: |
+        STACK_NAME="${{ env.STACK_NAME_PREFIX }}-prod"
+        PARAM_FILE="cloudformation/parameters/prod.json"
+        
+        echo "Deploying to production..."
+        
+        aws cloudformation deploy \
+          --template-file ${{ env.TEMPLATE_PATH }} \
+          --stack-name $STACK_NAME \
+          --parameter-overrides file://$PARAM_FILE \
+          --capabilities CAPABILITY_NAMED_IAM \
+          --tags \
+            Environment=prod \
+            Project=SolarSIEM \
+            ManagedBy=GitHubActions \
+            Repository=${{ github.repository }} \
+            Commit=${{ github.sha }} \
+            CriticalSystem=true \
+            BackupRequired=true \
+          --no-fail-on-empty-changeset \
+          --role-arn arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID_PROD }}:role/CloudFormationDeploymentRole || {
+            echo "Deployment failed, checking stack events..."
+            aws cloudformation describe-stack-events --stack-name $STACK_NAME --max-items 20
+            exit 1
+          }
+
+    - name: Verify production deployment
+      run: |
+        STACK_NAME="${{ env.STACK_NAME_PREFIX }}-prod"
+        
+        echo "=== Production Deployment Verification ==="
+        
+        # 스택 상태 확인
+        STACK_STATUS=$(aws cloudformation describe-stacks \
+          --stack-name $STACK_NAME \
+          --query 'Stacks[0].StackStatus' \
+          --output text)
+        
+        if [[ "$STACK_STATUS" != "CREATE_COMPLETE" && "$STACK_STATUS" != "UPDATE_COMPLETE" ]]; then
+          echo "❌ Stack deployment failed with status: $STACK_STATUS"
+          exit 1
+        fi
+        
+        echo "✅ Stack status: $STACK_STATUS"
+        
+        # 주요 리소스 확인
+        echo "=== Key Resources Status ==="
+        aws cloudformation list-stack-resources \
+          --stack-name $STACK_NAME \
+          --query 'StackResourceSummaries[?contains(LogicalResourceId, `Solar`)].{Resource:LogicalResourceId,Status:ResourceStatus}' \
+          --output table
+
+  # 📢 알림 및 후처리
+  notify-completion:
+    name: 📢 Send Notifications
+    runs-on: ubuntu-latest
+    needs: [deploy-dev, deploy-staging, deploy-prod]
+    if: always()
+    
+    steps:
+    - name: Determine overall result
+      id: result
+      run: |
+        dev_result="${{ needs.deploy-dev.result }}"
+        staging_result="${{ needs.deploy-staging.result }}"
+        prod_result="${{ needs.deploy-prod.result }}"
+        
+        # 전체 결과 판단
+        if [[ "$dev_result" == "failure" || "$staging_result" == "failure" || "$prod_result" == "failure" ]]; then
+          echo "overall=failure" >> $GITHUB_OUTPUT
+          echo "color=danger" >> $GITHUB_OUTPUT
+        elif [[ "$dev_result" == "success" || "$staging_result" == "success" || "$prod_result" == "success" ]]; then
+          echo "overall=success" >> $GITHUB_OUTPUT
+          echo "color=good" >> $GITHUB_OUTPUT
+        else
+          echo "overall=skipped" >> $GITHUB_OUTPUT
+          echo "color=warning" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Send Slack notification
+      uses: 8398a7/action-slack@v3
+      with:
+        status: custom
+        custom_payload: |
+          {
+            "channel": "#solar-siem-deployments",
+            "username": "Solar SIEM Deploy Bot",
+            "icon_emoji": ":robot_face:",
+            "attachments": [{
+              "color": "${{ steps.result.outputs.color }}",
+              "title": "🚀 Solar SIEM/SOAR Deployment Status",
+              "fields": [
+                {
+                  "title": "Repository",
+                  "value": "${{ github.repository }}",
+                  "short": true
+                },
+                {
+                  "title": "Branch", 
+                  "value": "${{ github.ref_name }}",
+                  "short": true
+                },
+                {
+                  "title": "Commit",
+                  "value": "<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>",
+                  "short": true
+                },
+                {
+                  "title": "Actor",
+                  "value": "${{ github.actor }}",
+                  "short": true
+                },
+                {
+                  "title": "Development",
+                  "value": "${{ needs.deploy-dev.result }}",
+                  "short": true
+                },
+                {
+                  "title": "Staging", 
+                  "value": "${{ needs.deploy-staging.result }}",
+                  "short": true
+                },
+                {
+                  "title": "Production",
+                  "value": "${{ needs.deploy-prod.result }}",
+                  "short": true
+                }
+              ],
+              "footer": "Solar SIEM GitHub Actions",
+              "ts": ${{ github.event.head_commit.timestamp && fromJSON(github.event.head_commit.timestamp) || github.run_number }}
+            }]
+          }
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+    - name: Create deployment report
+      run: |
+        cat >> $GITHUB_STEP_SUMMARY << 'EOF'
+        # 🚀 Solar SIEM/SOAR Deployment Report
+        
+        ## 📊 Deployment Results
+        | Environment | Status | 
+        |-------------|--------|
+        | 🧪 Development | ${{ needs.deploy-dev.result }} |
+        | 🎭 Staging | ${{ needs.deploy-staging.result }} |
+        | 🏭 Production | ${{ needs.deploy-prod.result }} |
+        
+        ## 📋 Deployment Details
+        - **Repository**: ${{ github.repository }}
+        - **Branch**: ${{ github.ref_name }}
+        - **Commit**: ${{ github.sha }}
+        - **Actor**: ${{ github.actor }}
+        - **Workflow**: ${{ github.workflow }}
+        - **Run**: [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+        
+        ## 🔗 Quick Links
+        - [AWS CloudFormation Console](https://console.aws.amazon.com/cloudformation/)
+        - [CloudWatch Logs](https://console.aws.amazon.com/cloudwatch/home?region=${{ env.AWS_REGION }}#logsV2:log-groups)
+        - [Step Functions Console](https://console.aws.amazon.com/states/home?region=${{ env.AWS_REGION }}#/statemachines)
+        EOF
+
+  # 🧹 정리 작업
+  cleanup:
+    name: 🧹 Cleanup
+    runs-on: ubuntu-latest
+    needs: [notify-completion]
+    if: always()
+    
+    steps:
+    - name: Clean up temporary files
+      run: |
+        echo "Cleaning up temporary resources..."
+        # 필요시 임시 파일이나 리소스 정리
+        echo "Cleanup completed"
