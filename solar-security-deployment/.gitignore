@@ -1,0 +1,27 @@
+# Sensitive files
+*-actual.yaml
+*-real.json
+*.env
+.env.*
+
+# AWS credentials
+.aws/
+aws-credentials
+
+# Parameter files with real values
+parameters/*-actual.*
+*-production.*
+
+# Backup files
+*-backup-*
+*.backup
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
