@@ -12,16 +12,21 @@
 1. S3 관련 보안 이벤트 대응 시나리오
     - S3 Public 탐지 및 대응
     - S3 버전관리 비활성화 탐지 및 대응
+      
 2. IAM 관련 이상 행위 대응 시나리오 - 오남용대응
     - Policy 부착 탐지 및 대응
     - 액세스키 생성 탐지 및 대응
     - MFA 삭제 탐지 및 비활성화 대응
     - user 생성 탐지 및 대응
     - policy/role 생성, 수정 탐지 및 대응
+      
 3. RDS Snapshot 관련 보안 이벤트 대응 시나리오
     - RDS snapshot Public 탐지 및 대응
+      
 4. 인시던트(Incident) 대응 및 알림 시나리오
+    - CloudTrail, VPC Flow Log, Security Hub, WAF에서 발생한 보안사고 탐지 및 대응
     - 심각도 별 대응 (Critical, High, Medium, Low)
+
 
 각 시나리오에서는 수집된 이벤트를 EventBridge로 필터링하고, Step Functions와 Lambda를 통해 자동 대응 및 Slack 알림을 수행한다. 필요한 로그 및 결과 데이터는 S3와 CloudWatch Logs에 저장된다.
 
