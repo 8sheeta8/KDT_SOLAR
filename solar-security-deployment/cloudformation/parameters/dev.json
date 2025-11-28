@@ -1,0 +1,22 @@
+[
+  {
+    "ParameterKey": "SlackWebhookURL",
+    "ParameterValue": "https://hooks.slack.com/services/YOUR/DEV/WEBHOOK"
+  },
+  {
+    "ParameterKey": "OpenSearchEndpoint",
+    "ParameterValue": "https://vpc-solar-opensearch-dev-xxxxx.us-east-1.es.amazonaws.com"
+  },
+  {
+    "ParameterKey": "VPCId",
+    "ParameterValue": "vpc-dev123456789"
+  },
+  {
+    "ParameterKey": "DefaultVPCId",
+    "ParameterValue": "vpc-default123456789"
+  },
+  {
+    "ParameterKey": "SubnetIds",
+    "ParameterValue": "subnet-dev1,subnet-dev2"
+  }
+]
