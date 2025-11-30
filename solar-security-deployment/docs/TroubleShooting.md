@@ -96,6 +96,35 @@
 
 ---
 
+# **4. 🪣 S3 시나리오 관련 이슈**
+
+### **4.1 🔁 Slack 알림 무한 반복 이슈**
+
+**🔍 원인:**
+
+- solar-s3public-eb(EventBridge) 규칙이 여러 S3 API 호출(eventName)을 모두 수신하도록 설정되어 있어 퍼블릭 차단 설정과 무관한 이벤트까지 트리거되고 있었음 
+
+**✅ 해결방법:**
+
+- 🎯 EventBridge 규칙을 PutBucketPublicAccessBlock API만 수신하도록 eventName을 축소
+- 🛡️ 퍼블릭 접근 차단이 false(비활성화)로 설정될 때만 감지하도록 조건 추가
+
+### **4.2 📤 eventName 전달 이슈**
+
+**🔍 원인:**
+
+- Lambda.invoke 통합 사용으로 입력/출력 구조가 중첩되며 eventName을 정상적으로 수신하지 못함
+- JSONata로 Slack Lambda 전달 데이터를 수동 매핑하면서 Step Functions 구조와 불일치 → 값이 null로 전달
+- Output 필드 사용 방식이 최신 Step Functions 구조와 맞지 않아 필드 누락 발생
+
+**✅ 해결방법:**
+
+- 🔧 Lambda 호출 방식을 단순화하여 일반 Lambda 호출로 변경
+- 🧹 Payload 수동 매핑 제거 → Step Functions 입력 그대로 전달
+- 📌 결과 저장 위치를 ResultPath로 명확히 설정
+- 📦 Slack Lambda가 전체 이벤트를 직접 파싱하도록 구조 정리
+
+
 > 📌 참고사항
 > ✅ 해결됨
 > 🚧 진행중
