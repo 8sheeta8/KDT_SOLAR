@@ -457,7 +457,7 @@ aws lambda get-function-configuration \
   --query 'Environment.Variables.SLACK_WEBHOOK_URL'
 ```
 
-## 📖 추가 리소스
+## 📖 documentation
 
 ### 📚 관련 문서
 - [AWS CloudFormation Guide](https://docs.aws.amazon.com/ko_kr/prescriptive-guidance/latest/least-privilege-cloudformation/permissions-use-cloudformation.html)
