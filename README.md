@@ -293,10 +293,9 @@ aws cloudformation create-stack \
 
 ### 📊 모니터링 및 분석 효과
 
-<div align="center">
-<img height="400" style="display: inline-block; margin: 0 10px; vertical-align: top;" alt="스크린샷 2025-11-24 104617" src="https://github.com/user-attachments/assets/a374a26b-5bd3-42ac-88eb-fba24b70f756" />
-<img height="400" style="display: inline-block; margin: 0 10px; vertical-align: top;" alt="스크린샷 2025-11-29 005432" src="https://github.com/user-attachments/assets/a8af7127-9933-4fcd-8e39-a3425470437e" />
-</div>
+<p align="center">
+<img height="400" alt="스크린샷 2025-11-24 104617" src="https://github.com/user-attachments/assets/a374a26b-5bd3-42ac-88eb-fba24b70f756" /> <img height="400" alt="스크린샷 2025-11-29 005432" src="https://github.com/user-attachments/assets/a8af7127-9933-4fcd-8e39-a3425470437e" />
+</p>
 
 #### 실시간 가시성 확보
 - 📈 **통합 대시보드**: 모든 보안 이벤트 한눈에 파악
