@@ -124,6 +124,17 @@
 - 📌 결과 저장 위치를 ResultPath로 명확히 설정
 - 📦 Slack Lambda가 전체 이벤트를 직접 파싱하도록 구조 정리
 
+### **4.3 S3 버킷 퍼블릭 차단 Lambda가 안 실행되던 문제**
+
+**🔍 원인:**
+
+- Lambda 역할의 정책에서 lambda.amazonaws.com만 등록되어 있었음
+- EventBridge를 통해 호출하려면 events.amazonaws.com도 허용돼야 하는데 빠져 있었음
+
+**✅ 해결방법:**
+
+- Lambda 역할(Trust Policy)에 events.amazonaws.com 추가
+
 ---
 
 # **5. IAM 시나리오 관련 이슈**
