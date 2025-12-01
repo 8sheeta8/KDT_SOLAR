@@ -468,6 +468,7 @@ aws lambda get-function-configuration \
 - [AWS S3 Security Blog]([https://aws.amazon.com/blogs/security/](https://dev.classmethod.jp/articles/jw-configuration-that-utilizes-aws-lambda-to-automatically-block-s3-public-access/))
 - [CloudFormation Blog](https://nearhome.tistory.com/117)
 - [AWS Openserach Blog](https://repost.aws/articles/ARlnlpfQIFSISRopWeP-zuVw/vpc-외부에서-open-search-dashboards에-엑세스하는-방법)
+- [AWS S3 versioning](https://aws.amazon.com/ko/blogs/storage/automate-amazon-s3-versioning-using-aws-config-rules/)
 
 ---
 
