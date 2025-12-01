@@ -9,7 +9,7 @@
 
 **Enterprise-grade SIEM/SOAR solution for AWS cloud environments**
 
-[🚀 Quick Start](#-quick-start) • [📋 Prerequisites](#-prerequisites) • [🔧 Configuration](#-configuration) • [📖 Documentation](#-documentation)
+[🚀 Quick Start](#-quick-start) • [📋 Prerequisites](#-prerequisites) • [🔧 Configuration](#-configuration) • [📖 Documentation](#-documentation) • [🌐 Web Page](#-web-page)
 
 </div>
 
@@ -225,15 +225,16 @@ aws cloudformation create-stack \
 
 ### 🖥️ 사이트 캡처
 
-<div>
-<img width="1662" height="840" alt="Image" src="https://github.com/user-attachments/assets/3f3acdf3-e938-4e5c-8246-c2ae8993914f" />
-<img width="1672" height="844" alt="Image" src="https://github.com/user-attachments/assets/6a7e7240-8ae2-4fe9-a380-f1cbc85c6bb9" />
-</div>
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/3f3acdf3-e938-4e5c-8246-c2ae8993914f" width="49%">
+  <img src="https://github.com/user-attachments/assets/6a7e7240-8ae2-4fe9-a380-f1cbc85c6bb9" width="49%">
+</p>
+
 
 ### 🧩 기능 소개
-- **상품 구매** :
-- **장바구니** :
-- - **기능이름** :
+- **회원가입**
+- **상품 구매**
+- **장바구니**
 
 
 ---
