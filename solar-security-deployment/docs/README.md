@@ -478,82 +478,6 @@ aws lambda get-function-configuration \
 
 ---
 
-## 🔄 업데이트 및 업그레이드
-
-### 🆙 스택 업데이트 방법
-
-#### 변경사항 미리보기
-```bash
-# Change Set 생성
-aws cloudformation create-change-set \
-  --stack-name solar-siem-infrastructure \
-  --template-body file://solar-siem-complete.yaml \
-  --change-set-name update-preview \
-  --capabilities CAPABILITY_NAMED_IAM
-
-# Change Set 내용 확인
-aws cloudformation describe-change-set \
-  --stack-name solar-siem-infrastructure \
-  --change-set-name update-preview
-```
-
-#### 안전한 업데이트 실행
-```bash
-# Change Set 실행
-aws cloudformation execute-change-set \
-  --stack-name solar-siem-infrastructure \
-  --change-set-name update-preview
-
-# 업데이트 상태 모니터링
-aws cloudformation describe-stacks \
-  --stack-name solar-siem-infrastructure \
-  --query 'Stacks[0].StackStatus'
-```
-
-### 📦 버전 관리
-
-#### Git 태그를 활용한 버전 관리
-```bash
-# 현재 버전 태그 생성
-git tag -a v1.0.0 -m "Solar SIEM v1.0.0 - Initial release"
-git push origin v1.0.0
-
-# 특정 버전으로 롤백
-git checkout v1.0.0
-```
-
----
-
-## 🆘 지원 및 커뮤니티
-
-### 📞 지원 채널
-
-| 지원 유형 | 채널 | 응답 시간 |
-|-----------|------|-----------|
-| **긴급 보안 이슈** | GitHub Issues (Security) | 4시간 내 |
-| **일반 문의** | GitHub Discussions | 1-2일 |
-| **기능 요청** | GitHub Issues (Enhancement) | 1주일 내 |
-| **문서 개선** | Pull Request | 수시 |
-
-### 🤝 기여 방법
-
-#### 버그 리포트
-1. [Issue 템플릿](/.github/ISSUE_TEMPLATE/bug_report.md) 사용
-2. 재현 가능한 단계 포함
-3. 환경 정보 및 로그 첨부
-
-#### 기능 개선
-1. [Feature Request 템플릿](/.github/ISSUE_TEMPLATE/feature_request.md) 사용
-2. 비즈니스 케이스 설명
-3. 예상 구현 방법 제시
-
-#### 코드 기여
-1. Fork Repository
-2. Feature Branch 생성
-3. Pull Request 제출
-
----
-
 ## 📖 추가 리소스
 
 ### 📚 관련 문서
@@ -574,21 +498,10 @@ git checkout v1.0.0
 
 ---
 
-## 📄 라이선스
-
-이 프로젝트는 MIT 라이선스 하에 배포됩니다. 자세한 내용은 [LICENSE](LICENSE) 파일을 참조하세요.
-
-## 🙏 감사의 말
-
-Solar SIEM/SOAR 프로젝트에 기여해주신 모든 개발자와 보안 전문가들께 감사드립니다.
-
----
-
 <div align="center">
 
 **🛡️ Stay Secure with Solar SIEM/SOAR 🛡️**
 
-Made with ❤️ by Solar Security Team
 
 [⬆️ Back to Top](#️-solar-siemsoar---aws-통합-보안-플랫폼)
 
