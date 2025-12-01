@@ -138,7 +138,7 @@ aws configure get region
 ```bash
 # 1. 템플릿 검증
 aws cloudformation validate-template \
-  --template-body file://solar-siem-complete.yaml
+  --template-body file://solar-security-cloudformation-template.yaml
 
 # 2. 스택 생성
 aws cloudformation create-stack \
@@ -215,7 +215,7 @@ aws cloudformation describe-stack-events \
 ```bash
 aws cloudformation create-stack \
   --stack-name solar-siem-infrastructure \
-  --template-body file://solar-siem-complete.yaml \
+  --template-body file://solar-security-cloudformation-template.yaml \
   --parameters file://parameters.json \
   --capabilities CAPABILITY_NAMED_IAM
 ```
