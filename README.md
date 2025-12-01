@@ -293,6 +293,9 @@ aws cloudformation create-stack \
 
 ### 📊 모니터링 및 분석 효과
 
+<img width="2559" height="1341" alt="스크린샷 2025-11-24 104617" src="https://github.com/user-attachments/assets/62be8ebd-4b60-4280-ba0d-a3298e7ce3a5" />
+- **Opensearch**: AWS 로그 모니터링 대시보드
+
 #### 실시간 가시성 확보
 - 📈 **통합 대시보드**: 모든 보안 이벤트 한눈에 파악
 - 📈 **실시간 알림**: 평균 1분 이내 위협 탐지 알림
