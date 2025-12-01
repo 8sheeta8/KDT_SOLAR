@@ -143,7 +143,7 @@ aws cloudformation validate-template \
 # 2. 스택 생성
 aws cloudformation create-stack \
   --stack-name solar-siem-infrastructure \
-  --template-body file://solar-siem-complete.yaml \
+  --template-body file://solar-security-cloudformation-template.yaml \
   --parameters \
     ParameterKey=SlackWebhookURL,ParameterValue="https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK" \
     ParameterKey=OpenSearchEndpoint,ParameterValue="https://your-opensearch-domain.region.es.amazonaws.com" \
@@ -457,37 +457,17 @@ aws lambda get-function-configuration \
   --query 'Environment.Variables.SLACK_WEBHOOK_URL'
 ```
 
-### 📈 성능 최적화
-
-#### Lambda 함수 최적화
-- **메모리 할당**: 워크로드에 맞는 적절한 메모리 설정
-- **동시 실행**: 제한 설정으로 비용 관리
-- **레이어 활용**: 공통 라이브러리 레이어화
-
-#### S3 비용 최적화
-- **라이프사이클 정책**: 자동 아카이브 설정
-- **Intelligent Tiering**: 자동 계층 이동
-- **압축**: 로그 압축으로 저장 공간 절약
-
----
-
 ## 📖 추가 리소스
 
 ### 📚 관련 문서
-- [AWS Well-Architected Security Pillar](https://docs.aws.amazon.com/wellarchitected/latest/security-pillar/)
-- [AWS CloudTrail User Guide](https://docs.aws.amazon.com/cloudtrail/)
-- [AWS WAF Developer Guide](https://docs.aws.amazon.com/waf/)
-- [Amazon OpenSearch Service Guide](https://docs.aws.amazon.com/opensearch-service/)
+- [AWS CloudFormation Guide](https://docs.aws.amazon.com/ko_kr/prescriptive-guidance/latest/least-privilege-cloudformation/permissions-use-cloudformation.html)
+- [AWS S3 Versioning Guide](https://docs.aws.amazon.com/ko_kr/AmazonS3/latest/userguide/manage-versioning-examples.html)
 
-### 🎓 교육 자료
-- [AWS Security Fundamentals](https://aws.amazon.com/training/course-descriptions/security-fundamentals/)
-- [CloudFormation Best Practices](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/best-practices.html)
-- [Step Functions Workshop](https://catalog.us-east-1.prod.workshops.aws/workshops/9e0368c0-8c49-4bec-8db4-8c44d2e8bb77/)
 
 ### 🔗 유용한 링크
-- [AWS Security Blog](https://aws.amazon.com/blogs/security/)
-- [CloudFormation Templates](https://github.com/aws-samples/aws-cloudformation-templates)
-- [AWS Security Best Practices](https://aws.amazon.com/architecture/security-identity-compliance/)
+- [AWS S3 Security Blog]([https://aws.amazon.com/blogs/security/](https://dev.classmethod.jp/articles/jw-configuration-that-utilizes-aws-lambda-to-automatically-block-s3-public-access/))
+- [CloudFormation Blog](https://nearhome.tistory.com/117)
+- [AWS Openserach Blog](https://repost.aws/articles/ARlnlpfQIFSISRopWeP-zuVw/vpc-외부에서-open-search-dashboards에-엑세스하는-방법)
 
 ---
 
