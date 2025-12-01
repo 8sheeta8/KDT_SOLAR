@@ -106,7 +106,7 @@ Solar SIEM/SOAR는 AWS 클라우드 환경을 위한 완전 자동화된 보안 
 
 ```bash
 git clone https://github.com/8sheeta8/KDT_SOLAR
-cd solar-siem-soar
+cd KDT_SOLAR
 ```
 
 ### 2️⃣ 사전 설정
